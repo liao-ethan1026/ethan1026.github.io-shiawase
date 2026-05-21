@@ -12,7 +12,7 @@ const MENU = [
   {
     type: "two-options",
     title: "招牌素刈包",
-    image: "https://images.unsplash.com/photo-1582450871972-ab5ca641643d?auto=format&fit=crop&w=300&q=80",
+    image: "./images/bao.jpg",
     options: [
       { id: "baoWith", flexName: "素刈包(加香菜)", uiName: "素刈包 (加香菜)", shortName: "加香菜", price: 60, isBao: true },
       { id: "baoWithout", flexName: "素刈包(不香菜)", uiName: "素刈包 (不香菜)", shortName: "不香菜", price: 60, isBao: true }
@@ -25,7 +25,7 @@ const MENU = [
     flexName: "特製滷味拼盤",
     uiName: "特製滷味拼盤",
     description: "大份量聚餐首選",
-    image: "https://images.unsplash.com/photo-1626804475297-41609ea004eb?auto=format&fit=crop&w=300&q=80",
+    image: "./images/platter.jpg",
     price: 600,
     isPlatter: true
   },
@@ -36,7 +36,7 @@ const MENU = [
     flexName: "素補湯",
     uiName: "素補湯",
     description: "暖胃養生推薦",
-    image: "https://images.unsplash.com/photo-1548943487-a2e4d43b2fc4?auto=format&fit=crop&w=300&q=80",
+    image: "./images/soup.jpg",
     price: 60
   },
   {
@@ -46,7 +46,7 @@ const MENU = [
     flexName: "豆漿(常溫)",
     uiName: "豆漿 (常溫)",
     description: "香醇濃郁",
-    image: "https://images.unsplash.com/photo-1598918451871-331206f477cc?auto=format&fit=crop&w=300&q=80",
+    image: "./images/soymilk.jpg",
     price: 30
   }
 ];
