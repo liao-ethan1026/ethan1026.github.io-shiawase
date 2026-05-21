@@ -862,6 +862,7 @@ function SafeImage({ src, alt, className }) {
   const [show, setShow] = useState(false);
   const [animate, setAnimate] = useState(false);
   const timeoutRef = useRef(null);
+  const overlayRef = useRef(null);
 
   // 雙指縮放與拖曳狀態
   const [scale, setScale] = useState(1);
@@ -869,10 +870,32 @@ function SafeImage({ src, alt, className }) {
   const lastDist = useRef(null);
   const lastPos = useRef(null);
 
+  // 防白屏核心：徹底封鎖系統級的原生滾動與縮放
+  useEffect(() => {
+    const node = overlayRef.current;
+    if (!node || !show) return;
+    
+    document.body.style.overflow = 'hidden'; // 禁止網頁底層滾動
+    
+    const preventNativeScroll = (e) => {
+      e.preventDefault(); // 封殺系統預設的滑動與雙指縮放行為（防 Safari 白屏）
+    };
+    
+    node.addEventListener('touchmove', preventNativeScroll, { passive: false });
+    return () => {
+      document.body.style.overflow = '';
+      node.removeEventListener('touchmove', preventNativeScroll);
+    };
+  }, [show]);
+
   const startPress = () => {
     timeoutRef.current = setTimeout(() => {
       setShow(true);
-      // 給予極短時間差觸發 CSS 進場淡入與放大動畫
+      // 復原初始狀態
+      setScale(1);
+      setPos({ x: 0, y: 0 });
+      lastDist.current = null;
+      lastPos.current = null;
       setTimeout(() => setAnimate(true), 10);
     }, 400); // 400毫秒視為長壓
   };
@@ -886,7 +909,6 @@ function SafeImage({ src, alt, className }) {
 
   const closePreview = () => {
     setAnimate(false);
-    // 等待淡出動畫結束（300ms）後再卸載圖片
     setTimeout(() => {
       setShow(false);
       setScale(1);
@@ -896,11 +918,10 @@ function SafeImage({ src, alt, className }) {
 
   const handleTouchStart = (e) => {
     if (e.touches.length === 2) {
-      const dist = Math.hypot(
+      lastDist.current = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      lastDist.current = dist;
     } else if (e.touches.length === 1) {
       lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     }
@@ -913,42 +934,53 @@ function SafeImage({ src, alt, className }) {
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      if (lastDist.current) {
+      if (lastDist.current && lastDist.current > 0) {
         const delta = dist / lastDist.current;
         setScale(s => {
-          let newScale = s * delta;
-          if (isNaN(newScale)) newScale = 1;
-          // 限制放大最大 3 倍，避免手機記憶體過載導致白畫面 (GPU Crash)
-          return Math.min(Math.max(1, newScale), 3);
+          let next = s * delta;
+          if (isNaN(next)) return s;
+          return Math.min(Math.max(1, next), 3.5); // 最大3.5倍
         });
       }
       lastDist.current = dist;
-    } else if (e.touches.length === 1 && scale > 1) {
-      // 放大時支援單指拖曳找細節
+    } else if (e.touches.length === 1) {
+      // 支援單指拖曳找細節
+      if (!lastPos.current) {
+        lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        return;
+      }
+      
       const curX = e.touches[0].clientX;
       const curY = e.touches[0].clientY;
-      if (lastPos.current) {
+      const dx = curX - lastPos.current.x;
+      const dy = curY - lastPos.current.y;
+      
+      if (!isNaN(dx) && !isNaN(dy)) {
         setPos(p => {
-          let nextX = p.x + (curX - lastPos.current.x);
-          let nextY = p.y + (curY - lastPos.current.y);
-          if (isNaN(nextX)) nextX = p.x;
-          if (isNaN(nextY)) nextY = p.y;
+          let nextX = p.x + dx;
+          let nextY = p.y + dy;
           
-          // 限制拖曳範圍，不讓照片跑出視窗造成破圖或閃退
-          const maxDrag = 150 * scale;
-          nextX = Math.max(-maxDrag, Math.min(maxDrag, nextX));
-          nextY = Math.max(-maxDrag, Math.min(maxDrag, nextY));
-
-          return { x: nextX, y: nextY };
+          // 動態限制拖曳範圍（防照片被拉出場外不見的白屏）
+          const limit = (scale - 1) * 160 + 50; 
+          return {
+            x: Math.max(-limit, Math.min(limit, nextX)),
+            y: Math.max(-limit, Math.min(limit, nextY))
+          };
         });
       }
       lastPos.current = { x: curX, y: curY };
     }
   };
 
-  const handleTouchEnd = () => {
-    lastDist.current = null;
-    lastPos.current = null;
+  const handleTouchEnd = (e) => {
+    if (e.touches.length === 0) {
+      lastDist.current = null;
+      lastPos.current = null;
+    } else if (e.touches.length === 1) {
+      // 兩指變一指時，讓那一指重新歸零，防瞬間暴衝
+      lastDist.current = null;
+      lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
   };
 
   return (
@@ -968,8 +1000,11 @@ function SafeImage({ src, alt, className }) {
         onMouseLeave={cancelPress}
       />
       {show && (
-        <div className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/90 transition-opacity duration-300 touch-none ${animate ? 'opacity-100' : 'opacity-0'}`}>
-          <div className={`w-full h-full flex flex-col items-center justify-center transition-transform duration-300 ${animate ? 'scale-100' : 'scale-90'}`}>
+        <div
+          ref={overlayRef}
+          className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/95 transition-opacity duration-300 touch-none ${animate ? 'opacity-100' : 'opacity-0'}`}
+        >
+          <div className={`w-full h-full flex flex-col items-center justify-center transition-transform duration-300 ease-out ${animate ? 'scale-100' : 'scale-[0.98]'}`}>
             <img
               src={src}
               alt={alt}
@@ -977,7 +1012,7 @@ function SafeImage({ src, alt, className }) {
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               onTouchCancel={handleTouchEnd}
-              className="max-w-full max-h-[80vh] object-contain select-none touch-none"
+              className="max-w-full max-h-[80vh] object-contain select-none"
               style={{
                 WebkitTouchCallout: 'none',
                 WebkitUserSelect: 'none',
@@ -989,10 +1024,9 @@ function SafeImage({ src, alt, className }) {
               onContextMenu={(e) => e.preventDefault()}
             />
           </div>
-          {/* 獨立在右上角的白色叉叉按鈕 */}
           <div
             onClick={closePreview}
-            className="absolute top-6 right-6 text-gray-800 bg-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-xl shadow-xl cursor-pointer z-[110]"
+            className="absolute top-6 right-6 text-gray-800 bg-white/90 active:bg-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-xl shadow-[0_0_15px_rgba(0,0,0,0.5)] cursor-pointer z-[110]"
           >
             ✕
           </div>
