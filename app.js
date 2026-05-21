@@ -1,4 +1,4 @@
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 
 const MY_LIFF_ID = "2010149173-LK0mBdYK";
 
@@ -774,7 +774,7 @@ function App() {
 function MenuItemWithTwoOptions(props) {
   return (
     <div className="bg-white rounded-xl shadow-sm border p-3 flex gap-4">
-      <img src={props.image} alt={props.title} className="w-24 h-24 rounded-lg food-img flex-shrink-0" />
+      <SafeImage src={props.image} alt={props.title} className="w-24 h-24 rounded-lg food-img flex-shrink-0" />
 
       <div className="flex-1 flex flex-col justify-center">
         <h2 className="text-lg font-bold text-gray-800 mb-2">{props.title}</h2>
@@ -802,7 +802,7 @@ function MenuItemWithTwoOptions(props) {
 function MenuItem(props) {
   return (
     <div className="bg-white rounded-xl shadow-sm border p-3 flex gap-4">
-      <img src={props.image} alt={props.title} className="w-24 h-24 rounded-lg food-img flex-shrink-0" />
+      <SafeImage src={props.image} alt={props.title} className="w-24 h-24 rounded-lg food-img flex-shrink-0" />
 
       <div className="flex-1 flex flex-col justify-center">
         <h2 className="text-lg font-bold text-gray-800">{props.title}</h2>
@@ -855,6 +855,68 @@ function ReceiptRow({ name, qty, price }) {
       <td align="center">{qty}</td>
       <td style={{ textAlign: "right" }}>${qty * price}</td>
     </tr>
+  );
+}
+
+function SafeImage({ src, alt, className }) {
+  const [isPreview, setIsPreview] = useState(false);
+  const timeoutRef = useRef(null);
+
+  const startPress = () => {
+    timeoutRef.current = setTimeout(() => {
+      setIsPreview(true);
+    }, 400); // 400毫秒視為長壓
+  };
+
+  const cancelPress = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+
+  return (
+    <>
+      <img
+        src={src}
+        alt={alt}
+        className={`${className} select-none cursor-pointer`}
+        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', WebkitUserDrag: 'none' }}
+        draggable="false"
+        onContextMenu={(e) => e.preventDefault()}
+        onTouchStart={startPress}
+        onMouseDown={startPress}
+        onTouchEnd={cancelPress}
+        onMouseUp={cancelPress}
+        onTouchMove={cancelPress}
+        onMouseLeave={cancelPress}
+      />
+      {isPreview && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 transition-opacity"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsPreview(false);
+          }}
+          onTouchStart={(e) => {
+            e.stopPropagation();
+            setIsPreview(false);
+          }}
+        >
+          <img
+            src={src}
+            alt={alt}
+            className="max-w-full max-h-[80vh] object-contain select-none"
+            style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', WebkitUserDrag: 'none' }}
+            draggable="false"
+            onContextMenu={(e) => e.preventDefault()}
+          />
+          <div className="absolute top-4 right-4 text-white bg-white/20 rounded-full w-10 h-10 flex items-center justify-center font-bold text-xl shadow-lg">
+            ✕
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
