@@ -915,7 +915,12 @@ function SafeImage({ src, alt, className }) {
       );
       if (lastDist.current) {
         const delta = dist / lastDist.current;
-        setScale(s => Math.min(Math.max(1, s * delta), 5)); // 限制放大最小 1 倍，最大 5 倍
+        setScale(s => {
+          let newScale = s * delta;
+          if (isNaN(newScale)) newScale = 1;
+          // 限制放大最大 3 倍，避免手機記憶體過載導致白畫面 (GPU Crash)
+          return Math.min(Math.max(1, newScale), 3);
+        });
       }
       lastDist.current = dist;
     } else if (e.touches.length === 1 && scale > 1) {
@@ -923,10 +928,19 @@ function SafeImage({ src, alt, className }) {
       const curX = e.touches[0].clientX;
       const curY = e.touches[0].clientY;
       if (lastPos.current) {
-        setPos(p => ({
-          x: p.x + (curX - lastPos.current.x),
-          y: p.y + (curY - lastPos.current.y)
-        }));
+        setPos(p => {
+          let nextX = p.x + (curX - lastPos.current.x);
+          let nextY = p.y + (curY - lastPos.current.y);
+          if (isNaN(nextX)) nextX = p.x;
+          if (isNaN(nextY)) nextY = p.y;
+          
+          // 限制拖曳範圍，不讓照片跑出視窗造成破圖或閃退
+          const maxDrag = 150 * scale;
+          nextX = Math.max(-maxDrag, Math.min(maxDrag, nextX));
+          nextY = Math.max(-maxDrag, Math.min(maxDrag, nextY));
+
+          return { x: nextX, y: nextY };
+        });
       }
       lastPos.current = { x: curX, y: curY };
     }
@@ -963,12 +977,13 @@ function SafeImage({ src, alt, className }) {
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               onTouchCancel={handleTouchEnd}
-              className="max-w-full max-h-[80vh] object-contain select-none"
+              className="max-w-full max-h-[80vh] object-contain select-none touch-none"
               style={{
                 WebkitTouchCallout: 'none',
                 WebkitUserSelect: 'none',
                 WebkitUserDrag: 'none',
-                transform: `translate(${pos.x}px, ${pos.y}px) scale(${scale})`
+                willChange: 'transform',
+                transform: `translate3d(${pos.x}px, ${pos.y}px, 0) scale(${scale})`
               }}
               draggable="false"
               onContextMenu={(e) => e.preventDefault()}
