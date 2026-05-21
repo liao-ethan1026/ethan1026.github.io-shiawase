@@ -859,12 +859,21 @@ function ReceiptRow({ name, qty, price }) {
 }
 
 function SafeImage({ src, alt, className }) {
-  const [isPreview, setIsPreview] = useState(false);
+  const [show, setShow] = useState(false);
+  const [animate, setAnimate] = useState(false);
   const timeoutRef = useRef(null);
+
+  // 雙指縮放與拖曳狀態
+  const [scale, setScale] = useState(1);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const lastDist = useRef(null);
+  const lastPos = useRef(null);
 
   const startPress = () => {
     timeoutRef.current = setTimeout(() => {
-      setIsPreview(true);
+      setShow(true);
+      // 給予極短時間差觸發 CSS 進場淡入與放大動畫
+      setTimeout(() => setAnimate(true), 10);
     }, 400); // 400毫秒視為長壓
   };
 
@@ -873,6 +882,59 @@ function SafeImage({ src, alt, className }) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+  };
+
+  const closePreview = () => {
+    setAnimate(false);
+    // 等待淡出動畫結束（300ms）後再卸載圖片
+    setTimeout(() => {
+      setShow(false);
+      setScale(1);
+      setPos({ x: 0, y: 0 });
+    }, 300);
+  };
+
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      lastDist.current = dist;
+    } else if (e.touches.length === 1) {
+      lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2) {
+      // 雙指縮放
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      if (lastDist.current) {
+        const delta = dist / lastDist.current;
+        setScale(s => Math.min(Math.max(1, s * delta), 5)); // 限制放大最小 1 倍，最大 5 倍
+      }
+      lastDist.current = dist;
+    } else if (e.touches.length === 1 && scale > 1) {
+      // 放大時支援單指拖曳找細節
+      const curX = e.touches[0].clientX;
+      const curY = e.touches[0].clientY;
+      if (lastPos.current) {
+        setPos(p => ({
+          x: p.x + (curX - lastPos.current.x),
+          y: p.y + (curY - lastPos.current.y)
+        }));
+      }
+      lastPos.current = { x: curX, y: curY };
+    }
+  };
+
+  const handleTouchEnd = () => {
+    lastDist.current = null;
+    lastPos.current = null;
   };
 
   return (
@@ -891,27 +953,32 @@ function SafeImage({ src, alt, className }) {
         onTouchMove={cancelPress}
         onMouseLeave={cancelPress}
       />
-      {isPreview && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 transition-opacity"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsPreview(false);
-          }}
-          onTouchStart={(e) => {
-            e.stopPropagation();
-            setIsPreview(false);
-          }}
-        >
-          <img
-            src={src}
-            alt={alt}
-            className="max-w-full max-h-[80vh] object-contain select-none"
-            style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', WebkitUserDrag: 'none' }}
-            draggable="false"
-            onContextMenu={(e) => e.preventDefault()}
-          />
-          <div className="absolute top-4 right-4 text-white bg-white/20 rounded-full w-10 h-10 flex items-center justify-center font-bold text-xl shadow-lg">
+      {show && (
+        <div className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/90 transition-opacity duration-300 touch-none ${animate ? 'opacity-100' : 'opacity-0'}`}>
+          <div className={`w-full h-full flex flex-col items-center justify-center transition-transform duration-300 ${animate ? 'scale-100' : 'scale-90'}`}>
+            <img
+              src={src}
+              alt={alt}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchEnd}
+              className="max-w-full max-h-[80vh] object-contain select-none"
+              style={{
+                WebkitTouchCallout: 'none',
+                WebkitUserSelect: 'none',
+                WebkitUserDrag: 'none',
+                transform: `translate(${pos.x}px, ${pos.y}px) scale(${scale})`
+              }}
+              draggable="false"
+              onContextMenu={(e) => e.preventDefault()}
+            />
+          </div>
+          {/* 獨立在右上角的白色叉叉按鈕 */}
+          <div
+            onClick={closePreview}
+            className="absolute top-6 right-6 text-gray-800 bg-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-xl shadow-xl cursor-pointer z-[110]"
+          >
             ✕
           </div>
         </div>
