@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
   <title>幸福蔬食線上點餐</title>
 
@@ -31,7 +31,6 @@
 
     .food-img {
       object-fit: cover;
-      transition: transform 0.3s;
     }
   </style>
 </head>
@@ -42,23 +41,12 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    /**
-     * 請改成你的 LIFF ID
-     * LINE Developers 的 LIFF scope 需要勾：
-     * 1. profile
-     * 2. chat_message.write
-     */
     const MY_LIFF_ID = "2010149173-LK0mBdYK";
 
     /**
-     * 正式使用請維持 flex。
-     * 如果 Flex Message 一直失敗，請先改成 text 測試：
-     * const SEND_MODE = "text";
-     *
-     * text 可以送、flex 不能送：代表 Flex JSON 格式問題。
-     * text 也不能送：代表 LIFF 權限、授權、開啟環境或聊天室 context 問題。
+     * 這裡貼上 Apps Script Web App 的 /exec 網址
      */
-    const SEND_MODE = "flex";
+    const GAS_WEB_APP_URL = "貼上你的 Apps Script /exec 網址";
 
     const PRICES = {
       baoWith: 60,
@@ -88,54 +76,68 @@
       });
 
       const [form, setForm] = useState({
-        name: '',
-        phone: '',
-        address: '',
-        time: '',
-        note: ''
+        name: "",
+        phone: "",
+        address: "",
+        time: "",
+        note: ""
       });
 
       const [liffReady, setLiffReady] = useState(false);
+      const [isLineClient, setIsLineClient] = useState(false);
       const [orderResult, setOrderResult] = useState(null);
-      const [receiptImg, setReceiptImg] = useState('');
+      const [receiptImg, setReceiptImg] = useState("");
       const [isSubmitting, setIsSubmitting] = useState(false);
       const [toast, setToast] = useState({
         show: false,
-        message: '',
+        message: "",
         isWarning: true
       });
 
       useEffect(() => {
-        liff.init({ liffId: MY_LIFF_ID })
-          .then(async () => {
+        async function initLiff() {
+          try {
+            await liff.init({
+              liffId: MY_LIFF_ID
+            });
+
+            const inClient = liff.isInClient();
+
+            console.log("LIFF 初始化完成");
+            console.log("isInClient:", inClient);
+            console.log("isLoggedIn:", liff.isLoggedIn());
+            console.log("context:", liff.getContext ? liff.getContext() : null);
+
             setLiffReady(true);
+            setIsLineClient(inClient);
 
-            console.log("LIFF initialized");
-            console.log("isInClient:", liff.isInClient());
-            console.log("context:", safeStringify(getSafeContext()));
-
-            if (!liff.isLoggedIn()) {
-              liff.login();
+            if (!inClient) {
+              showToastMessage("⚠️ 目前不是從 LINE App 開啟，可以測試點餐，但無法回傳 LINE 聊天室。");
               return;
             }
 
-            await logPermissionStatus();
+            if (liff.isLoggedIn()) {
+              liff.getProfile()
+                .then(profile => {
+                  setForm(prev => ({
+                    ...prev,
+                    name: profile.displayName || prev.name
+                  }));
+                })
+                .catch(err => {
+                  console.error("無法取得 LINE Profile", err);
+                });
+            }
 
-            liff.getProfile()
-              .then(profile => {
-                setForm(prev => ({
-                  ...prev,
-                  name: profile.displayName || prev.name
-                }));
-              })
-              .catch(err => {
-                console.error("無法取得 LINE Profile", err);
-              });
-          })
-          .catch(err => {
+          } catch (err) {
             console.error("LIFF 初始化失敗", err);
-            showToastMessage("⚠️ LIFF 初始化失敗，請確認 LIFF ID 與開啟方式。");
-          });
+            setLiffReady(false);
+            setIsLineClient(false);
+            showToastMessage("⚠️ LIFF 初始化失敗：" + (err.message || String(err)));
+          }
+        }
+
+        initLiff();
       }, []);
 
       const showToastMessage = (msg, isWarn = true) => {
@@ -148,10 +150,10 @@
         setTimeout(() => {
           setToast({
             show: false,
-            message: '',
+            message: "",
             isWarning: true
           });
-        }, 6000);
+        }, 5000);
       };
 
       const totalBao = cart.baoWith + cart.baoWithout;
@@ -179,6 +181,37 @@
         }));
       };
 
+      const pad = (num) => {
+        return String(num).padStart(2, "0");
+      };
+
+      const createClientOrderId = () => {
+        const now = new Date();
+
+        const yyyy = now.getFullYear();
+        const mm = pad(now.getMonth() + 1);
+        const dd = pad(now.getDate());
+        const hh = pad(now.getHours());
+        const mi = pad(now.getMinutes());
+        const ss = pad(now.getSeconds());
+        const random = Math.floor(1000 + Math.random() * 9000);
+
+        return `${yyyy}${mm}${dd}-${hh}${mi}${ss}-${random}`;
+      };
+
+      const formatTimestamp = () => {
+        const now = new Date();
+
+        const yyyy = now.getFullYear();
+        const mm = pad(now.getMonth() + 1);
+        const dd = pad(now.getDate());
+        const hh = pad(now.getHours());
+        const mi = pad(now.getMinutes());
+        const ss = pad(now.getSeconds());
+
+        return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+      };
+
       function safeStringify(value) {
         try {
           return JSON.stringify(value, null, 2);
@@ -186,136 +219,6 @@
           return String(value);
         }
       }
-
-      function getSafeContext() {
-        try {
-          return liff.getContext ? liff.getContext() : null;
-        } catch (e) {
-          return {
-            error: e.message || String(e)
-          };
-        }
-      }
-
-      async function logPermissionStatus() {
-        try {
-          if (liff.permission && liff.permission.getGrantedAll) {
-            const granted = await liff.permission.getGrantedAll();
-            console.log("Granted scopes:", granted);
-          }
-
-          if (liff.permission && liff.permission.query) {
-            const chatPermission = await liff.permission.query("chat_message.write");
-            console.log("chat_message.write permission:", chatPermission);
-          }
-        } catch (e) {
-          console.warn("取得 LIFF 權限狀態失敗", e);
-        }
-      }
-
-      async function getLiffDebugInfo() {
-        const info = {
-          sendMode: SEND_MODE,
-          liffReady,
-          isInClient: null,
-          isLoggedIn: null,
-          os: null,
-          language: null,
-          version: null,
-          context: null,
-          grantedScopes: null,
-          chatMessageWritePermission: null
-        };
-
-        try {
-          info.isInClient = liff.isInClient();
-        } catch (e) {
-          info.isInClient = "error: " + (e.message || String(e));
-        }
-
-        try {
-          info.isLoggedIn = liff.isLoggedIn();
-        } catch (e) {
-          info.isLoggedIn = "error: " + (e.message || String(e));
-        }
-
-        try {
-          info.os = liff.getOS ? liff.getOS() : "liff.getOS unavailable";
-        } catch (e) {
-          info.os = "error: " + (e.message || String(e));
-        }
-
-        try {
-          info.language = liff.getLanguage ? liff.getLanguage() : "liff.getLanguage unavailable";
-        } catch (e) {
-          info.language = "error: " + (e.message || String(e));
-        }
-
-        try {
-          info.version = liff.getVersion ? liff.getVersion() : "liff.getVersion unavailable";
-        } catch (e) {
-          info.version = "error: " + (e.message || String(e));
-        }
-
-        try {
-          info.context = liff.getContext ? liff.getContext() : "liff.getContext unavailable";
-        } catch (e) {
-          info.context = "error: " + (e.message || String(e));
-        }
-
-        try {
-          if (liff.permission && liff.permission.getGrantedAll) {
-            info.grantedScopes = await liff.permission.getGrantedAll();
-          } else {
-            info.grantedScopes = "liff.permission.getGrantedAll unavailable";
-          }
-        } catch (e) {
-          info.grantedScopes = "error: " + (e.message || String(e));
-        }
-
-        try {
-          if (liff.permission && liff.permission.query) {
-            info.chatMessageWritePermission = await liff.permission.query("chat_message.write");
-          } else {
-            info.chatMessageWritePermission = "liff.permission.query unavailable";
-          }
-        } catch (e) {
-          info.chatMessageWritePermission = "error: " + (e.message || String(e));
-        }
-
-        return info;
-      }
-
-      async function ensureChatMessagePermission() {
-        if (!liff.permission || !liff.permission.query) {
-          return;
-        }
-
-        const permission = await liff.permission.query("chat_message.write");
-        console.log("send 前 chat_message.write permission:", permission);
-
-        if (permission && permission.state === "granted") {
-          return;
-        }
-
-        if (permission && permission.state === "prompt" && liff.permission.requestAll) {
-          await liff.permission.requestAll();
-          return;
-        }
-
-        throw new Error("chat_message.write 尚未授權或不可用：" + safeStringify(permission));
-      }
-
-      const buildTextMessage = (order) => {
-        return {
-          type: "text",
-          text:
-            "幸福蔬食訂單已送出\n" +
-            "訂單編號：" + order.orderId + "\n" +
-            "訂購人：" + order.form.name + "\n" +
-            "總金額：$" + Number(order.totalAmount).toLocaleString()
-        };
-      };
 
       const buildCustomerFlexMessage = (order) => {
         const rows = [];
@@ -449,7 +352,7 @@
         };
       };
 
-      async function sendOrderMessageToLineChat(finalOrder) {
+      async function sendOrderMessageToLineChat(order) {
         if (!liffReady) {
           throw new Error("LIFF 尚未初始化完成");
         }
@@ -458,18 +361,29 @@
           throw new Error("目前不是在 LINE App 的 LIFF 視窗內開啟，無法送回聊天室");
         }
 
-        await ensureChatMessagePermission();
+        const flexMessage = buildCustomerFlexMessage(order);
 
-        const message = SEND_MODE === "text"
-          ? buildTextMessage(finalOrder)
-          : buildCustomerFlexMessage(finalOrder);
+        console.log("即將送出的 Flex Message:", safeStringify(flexMessage));
 
-        console.log("即將送出的 message:", safeStringify(message));
-
-        await liff.sendMessages([message]);
+        await liff.sendMessages([flexMessage]);
       }
 
-      const submitOrder = () => {
+      async function saveOrderToGoogleSheet(order) {
+        if (!GAS_WEB_APP_URL || GAS_WEB_APP_URL.includes("貼上你的")) {
+          throw new Error("尚未設定 GAS_WEB_APP_URL，請貼上 Apps Script /exec 網址");
+        }
+
+        await fetch(GAS_WEB_APP_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify(order)
+        });
+      }
+
+      const submitOrder = async () => {
         if (!form.name || !form.phone || !form.address || !form.time) {
           showToastMessage("⚠️ 請完整填寫外送聯絡資訊（姓名、電話、地址與時間皆為必填喔！）");
           return;
@@ -487,99 +401,64 @@
 
         setIsSubmitting(true);
 
-        google.script.run
-          .withSuccessHandler(async (res) => {
-            setIsSubmitting(false);
+        const finalOrder = {
+          orderId: createClientOrderId(),
+          timestamp: formatTimestamp(),
+          items: { ...cart },
+          form: { ...form },
+          totalAmount: totalAmount,
+          lineStatus: "",
+          lineError: ""
+        };
 
-            if (!res.success) {
-              showToastMessage("❌ 送出失敗：" + res.message);
-              return;
-            }
+        try {
+          try {
+            await sendOrderMessageToLineChat(finalOrder);
+            finalOrder.lineStatus = "顧客端已回傳 Flex Message";
+            finalOrder.lineError = "";
+          } catch (lineErr) {
+            console.error("LINE 聊天室回傳失敗", lineErr);
+            finalOrder.lineStatus = "顧客端回傳失敗";
+            finalOrder.lineError = lineErr.message || String(lineErr);
 
-            const finalOrder = {
-              items: { ...cart },
-              form: { ...form },
-              orderId: res.orderId,
-              timestamp: res.timestamp || new Date().toLocaleString(),
-              totalAmount: res.totalAmount || totalAmount
-            };
+            showToastMessage("⚠️ LINE 聊天室回傳失敗，但仍會儲存訂單：" + finalOrder.lineError);
+          }
 
-            try {
-              await sendOrderMessageToLineChat(finalOrder);
+          await saveOrderToGoogleSheet(finalOrder);
 
-              google.script.run.markClientFlexSent(
-                finalOrder.orderId,
-                SEND_MODE === "text" ? "顧客端已回傳文字測試" : "顧客端已回傳 Flex Message",
-                ""
-              );
+          setOrderResult(finalOrder);
+          setStage(3);
 
-              setOrderResult(finalOrder);
-              setStage(3);
+          setTimeout(() => {
+            generateReceipt();
+          }, 500);
 
-              setTimeout(() => {
-                generateReceipt();
-              }, 500);
+        } catch (err) {
+          console.error("送出訂單失敗", err);
+          showToastMessage("❌ 送出失敗：" + (err.message || String(err)));
 
-            } catch (err) {
-              console.error("LINE 聊天室回傳失敗", err);
-
-              const debugInfo = await getLiffDebugInfo();
-
-              const errorText =
-                "錯誤名稱：" + (err.name || "") +
-                "\n錯誤碼：" + (err.code || "") +
-                "\n錯誤訊息：" + (err.message || String(err)) +
-                "\n\nLIFF診斷資訊：" + safeStringify(debugInfo);
-
-              google.script.run.markClientFlexSent(
-                finalOrder.orderId,
-                "顧客端回傳失敗",
-                errorText
-              );
-
-              showToastMessage(
-                "⚠️ 訂單已儲存，但 LINE 聊天室回傳失敗：" +
-                (err.code ? err.code + " " : "") +
-                (err.message || String(err))
-              );
-
-              setOrderResult(finalOrder);
-              setStage(3);
-
-              setTimeout(() => {
-                generateReceipt();
-              }, 500);
-            }
-          })
-          .withFailureHandler((err) => {
-            setIsSubmitting(false);
-            console.error("submitOrder 呼叫失敗", err);
-            showToastMessage("❌ 網路連線失敗，請重新送出。");
-          })
-          .submitOrder({
-            items: cart,
-            form: form
-          });
+        } finally {
+          setIsSubmitting(false);
+        }
       };
 
       const generateReceipt = () => {
-        const el = document.getElementById('receipt-container');
+        const el = document.getElementById("receipt-container");
 
         if (!el) return;
 
         html2canvas(el, {
           scale: 2
         }).then(canvas => {
-          setReceiptImg(canvas.toDataURL('image/png'));
+          setReceiptImg(canvas.toDataURL("image/png"));
         });
       };
 
       return (
         <div className="max-w-md mx-auto bg-white min-h-screen relative shadow-lg">
-
           {toast.show && (
             <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-11/12 max-w-sm transition-all duration-300">
-              <div className={`p-4 rounded-xl shadow-2xl border flex items-start gap-3 ${toast.isWarning ? 'bg-red-50 border-red-200 text-red-800' : 'bg-green-50 border-green-800 text-green-800'}`}>
+              <div className={`p-4 rounded-xl shadow-2xl border flex items-start gap-3 ${toast.isWarning ? "bg-red-50 border-red-200 text-red-800" : "bg-green-50 border-green-200 text-green-800"}`}>
                 <div className="text-xl flex-shrink-0">{toast.isWarning ? "⚠️" : "💡"}</div>
                 <div className="text-sm font-semibold leading-relaxed whitespace-pre-line">{toast.message}</div>
               </div>
@@ -611,6 +490,9 @@
             <div className="pb-24">
               <header className="bg-orange-600 text-white p-4 sticky top-0 z-10 text-center shadow-md">
                 <h1 className="text-xl font-bold">幸福蔬食線上點餐</h1>
+                <p className="text-xs mt-1 opacity-90">
+                  {liffReady ? (isLineClient ? "LINE 已連線" : "非 LINE 測試模式") : "LINE 初始化中..."}
+                </p>
               </header>
 
               <div className="p-4 space-y-4">
@@ -623,10 +505,10 @@
                   priceB={PRICES.baoWithout}
                   qtyA={cart.baoWith}
                   qtyB={cart.baoWithout}
-                  onMinusA={() => updateQty('baoWith', -1)}
-                  onPlusA={() => updateQty('baoWith', 1)}
-                  onMinusB={() => updateQty('baoWithout', -1)}
-                  onPlusB={() => updateQty('baoWithout', 1)}
+                  onMinusA={() => updateQty("baoWith", -1)}
+                  onPlusA={() => updateQty("baoWith", 1)}
+                  onMinusB={() => updateQty("baoWithout", -1)}
+                  onPlusB={() => updateQty("baoWithout", 1)}
                 />
 
                 <MenuItem
@@ -635,8 +517,8 @@
                   description="大份量聚餐首選"
                   price={PRICES.platter}
                   qty={cart.platter}
-                  onMinus={() => updateQty('platter', -1)}
-                  onPlus={() => updateQty('platter', 1)}
+                  onMinus={() => updateQty("platter", -1)}
+                  onPlus={() => updateQty("platter", 1)}
                 />
 
                 <MenuItem
@@ -645,8 +527,8 @@
                   description="暖胃養生推薦"
                   price={PRICES.soup}
                   qty={cart.soup}
-                  onMinus={() => updateQty('soup', -1)}
-                  onPlus={() => updateQty('soup', 1)}
+                  onMinus={() => updateQty("soup", -1)}
+                  onPlus={() => updateQty("soup", 1)}
                 />
 
                 <MenuItem
@@ -655,8 +537,8 @@
                   description="香醇濃郁"
                   price={PRICES.soyMilk}
                   qty={cart.soyMilk}
-                  onMinus={() => updateQty('soyMilk', -1)}
-                  onPlus={() => updateQty('soyMilk', 1)}
+                  onMinus={() => updateQty("soyMilk", -1)}
+                  onPlus={() => updateQty("soyMilk", 1)}
                 />
               </div>
 
@@ -770,9 +652,9 @@
                 <button
                   onClick={submitOrder}
                   disabled={isSubmitting}
-                  className={`w-full py-4 rounded-xl font-bold text-white shadow-md text-lg transition-all ${isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-600 active:bg-orange-700'}`}
+                  className={`w-full py-4 rounded-xl font-bold text-white shadow-md text-lg transition-all ${isSubmitting ? "bg-gray-400 cursor-not-allowed" : "bg-orange-600 active:bg-orange-700"}`}
                 >
-                  {isSubmitting ? '正在發送訂單中...' : '確認餐點並送出'}
+                  {isSubmitting ? "正在發送訂單中..." : "確認餐點並送出"}
                 </button>
               </div>
             </div>
@@ -799,13 +681,12 @@
                   if (liff.isInClient()) {
                     liff.closeWindow();
                   } else {
-                    alert("訂單已完成。請回到 LINE 聊天室查看訊息，或重新整理再次點餐。");
                     location.reload();
                   }
                 }}
                 className="w-full bg-gray-800 text-white font-bold py-4 rounded-xl shadow-md active:bg-gray-900 text-md"
               >
-                {liff.isInClient() ? '完成並關閉' : '完成，返回重新點餐'}
+                {liff.isInClient() ? "完成並關閉" : "返回重新點餐"}
               </button>
             </div>
           )}
@@ -813,20 +694,20 @@
           {stage === 3 && (
             <div id="receipt-container">
               <h2 style={{
-                textAlign: 'center',
-                borderBottom: '2px solid black',
-                paddingBottom: '10px',
-                fontSize: '20px',
-                fontWeight: 'bold',
-                letterSpacing: '2px'
+                textAlign: "center",
+                borderBottom: "2px solid black",
+                paddingBottom: "10px",
+                fontSize: "20px",
+                fontWeight: "bold",
+                letterSpacing: "2px"
               }}>
                 幸福蔬食 訂單出單明細
               </h2>
 
               <div style={{
-                fontSize: '13px',
-                lineHeight: '1.8',
-                marginTop: '12px'
+                fontSize: "13px",
+                lineHeight: "1.8",
+                marginTop: "12px"
               }}>
                 <p><strong>訂單編號：</strong>{orderResult?.orderId}</p>
                 <p><strong>下單時間：</strong>{orderResult?.timestamp}</p>
@@ -834,22 +715,23 @@
                 <p><strong>聯絡電話：</strong>{orderResult?.form.phone}</p>
                 <p><strong>外送地址：</strong>{orderResult?.form.address}</p>
                 <p><strong>期望時間：</strong>{orderResult?.form.time}</p>
-                <p><strong>特別備註：</strong><span style={{ color: 'red', fontWeight: 'bold' }}>{orderResult?.form.note || "無"}</span></p>
+                <p><strong>特別備註：</strong><span style={{ color: "red", fontWeight: "bold" }}>{orderResult?.form.note || "無"}</span></p>
               </div>
 
               <table style={{
-                width: '100%',
-                marginTop: '15px',
-                borderCollapse: 'collapse',
-                fontSize: '13px'
+                width: "100%",
+                marginTop: "15px",
+                borderCollapse: "collapse",
+                fontSize: "13px"
               }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid black', textAlign: 'left' }}>
-                    <th style={{ padding: '6px 0' }}>餐點品項名稱</th>
-                    <th style={{ padding: '6px 0', textAlign: 'center' }}>數量</th>
-                    <th style={{ padding: '6px 0', textAlign: 'right' }}>小計</th>
+                  <tr style={{ borderBottom: "1px solid black", textAlign: "left" }}>
+                    <th style={{ padding: "6px 0" }}>餐點品項名稱</th>
+                    <th style={{ padding: "6px 0", textAlign: "center" }}>數量</th>
+                    <th style={{ padding: "6px 0", textAlign: "right" }}>小計</th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {orderResult?.items.baoWith > 0 && <ReceiptRow name="素刈包 (加香菜)" qty={orderResult.items.baoWith} price={PRICES.baoWith} />}
                   {orderResult?.items.baoWithout > 0 && <ReceiptRow name="素刈包 (不香菜)" qty={orderResult.items.baoWithout} price={PRICES.baoWithout} />}
@@ -857,10 +739,11 @@
                   {orderResult?.items.soup > 0 && <ReceiptRow name="素補湯" qty={orderResult.items.soup} price={PRICES.soup} />}
                   {orderResult?.items.soyMilk > 0 && <ReceiptRow name="豆漿 (常溫)" qty={orderResult.items.soyMilk} price={PRICES.soyMilk} />}
                 </tbody>
+
                 <tfoot>
-                  <tr style={{ borderTop: '2px solid black', fontWeight: 'bold' }}>
-                    <td colSpan="2" style={{ padding: '12px 0', fontSize: '14px' }}>應收總金額</td>
-                    <td style={{ padding: '12px 0', textAlign: 'right', fontSize: '18px', color: 'black' }}>
+                  <tr style={{ borderTop: "2px solid black", fontWeight: "bold" }}>
+                    <td colSpan="2" style={{ padding: "12px 0", fontSize: "14px" }}>應收總金額</td>
+                    <td style={{ padding: "12px 0", textAlign: "right", fontSize: "18px", color: "black" }}>
                       ${orderResult?.totalAmount}
                     </td>
                   </tr>
@@ -868,7 +751,6 @@
               </table>
             </div>
           )}
-
         </div>
       );
     }
@@ -953,14 +835,14 @@
     function ReceiptRow({ name, qty, price }) {
       return (
         <tr>
-          <td style={{ padding: '6px 0' }}>{name}</td>
+          <td style={{ padding: "6px 0" }}>{name}</td>
           <td align="center">{qty}</td>
-          <td style={{ textAlign: 'right' }}>${qty * price}</td>
+          <td style={{ textAlign: "right" }}>${qty * price}</td>
         </tr>
       );
     }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   </script>
 </body>
 </html>
