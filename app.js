@@ -67,6 +67,11 @@ MENU.forEach(item => {
   }
 });
 
+const TAIWAN_ZONES = {
+  "台北市": ["中正區", "大同區", "中山區", "松山區", "大安區", "萬華區", "信義區", "士林區", "北投區", "內湖區", "南港區", "文山區"],
+  "新北市": ["板橋區", "三重區", "中和區", "永和區", "新莊區", "新店區", "土城區", "蘆洲區", "樹林區", "汐止區", "鶯歌區", "三峽區", "淡水區", "瑞芳區", "五股區", "泰山區", "林口區", "深坑區", "石碇區", "坪林區", "三芝區", "石門區", "八里區", "平溪區", "雙溪區", "貢寮區", "金山區", "萬里區", "烏來區"]
+};
+
 function App() {
   const [stage, setStage] = useState(1);
   const [showAnnounce, setShowAnnounce] = useState(true);
@@ -76,7 +81,9 @@ function App() {
   const [form, setForm] = useState({
     name: "",
     phone: "",
-    address: "",
+    city: "",
+    district: "",
+    addressDetail: "",
     time: "",
     note: ""
   });
@@ -390,7 +397,7 @@ function App() {
   }
 
   const submitOrder = async () => {
-    if (!form.name || !form.phone || !form.address || !form.time) {
+    if (!form.name || !form.phone || !form.city || !form.district || !form.addressDetail || !form.time) {
       showToastMessage("⚠️ 請完整填寫外送聯絡資訊（姓名、電話、地址與時間皆為必填喔！）");
       return;
     }
@@ -407,11 +414,14 @@ function App() {
 
     setIsSubmitting(true);
 
+    // 自動組合完整地址給後端與 LINE 訊息使用
+    const completeAddress = form.city + form.district + form.addressDetail;
+
     const finalOrder = {
       orderId: createClientOrderId(),
       timestamp: formatTimestamp(),
       items: { ...cart },
-      form: { ...form },
+      form: { ...form, address: completeAddress },
       totalAmount: totalAmount,
       lineStatus: "",
       lineError: ""
@@ -624,11 +634,36 @@ function App() {
                 className="w-full border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
 
+              <div className="flex gap-2">
+                <select
+                  value={form.city}
+                  onChange={e => setForm({ ...form, city: e.target.value, district: "" })}
+                  className="w-1/2 border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                >
+                  <option value="" disabled>請選擇縣市 *</option>
+                  {Object.keys(TAIWAN_ZONES).map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={form.district}
+                  onChange={e => setForm({ ...form, district: e.target.value })}
+                  className="w-1/2 border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                  disabled={!form.city}
+                >
+                  <option value="" disabled>請選擇區域 *</option>
+                  {form.city && TAIWAN_ZONES[form.city].map(dist => (
+                    <option key={dist} value={dist}>{dist}</option>
+                  ))}
+                </select>
+              </div>
+
               <input
                 type="text"
-                placeholder="送餐完整地址 *"
-                value={form.address}
-                onChange={e => setForm({ ...form, address: e.target.value })}
+                placeholder="送餐詳細地址（路名、段、巷弄、樓層） *"
+                value={form.addressDetail}
+                onChange={e => setForm({ ...form, addressDetail: e.target.value })}
                 className="w-full border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
 
