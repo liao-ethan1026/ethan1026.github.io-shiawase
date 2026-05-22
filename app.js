@@ -461,7 +461,7 @@ function App() {
   };
 
   return (
-    <div className="max-w-md mx-auto bg-white min-h-screen relative shadow-lg">
+    <div className="max-w-md mx-auto bg-white min-h-screen relative shadow-lg overflow-x-hidden">
       {toast.show && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-11/12 max-w-sm transition-all duration-300">
           <div className={`p-4 rounded-xl shadow-2xl border flex items-start gap-3 ${toast.isWarning ? "bg-red-50 border-red-200 text-red-800" : "bg-green-50 border-green-200 text-green-800"}`}>
