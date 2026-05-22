@@ -1002,7 +1002,7 @@ function SafeImage({ src, alt, className }) {
       {show && (
         <div
           ref={overlayRef}
-          className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/95 transition-opacity duration-300 touch-none ${animate ? 'opacity-100' : 'opacity-0'}`}
+          className={`fixed top-0 bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[100] flex items-center justify-center bg-black/95 transition-opacity duration-300 touch-none overflow-hidden ${animate ? 'opacity-100' : 'opacity-0'}`}
         >
           <div className={`w-full h-full flex flex-col items-center justify-center transition-transform duration-300 ease-out ${animate ? 'scale-100' : 'scale-[0.98]'}`}>
             <img
