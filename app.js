@@ -863,6 +863,7 @@ function SafeImage({ src, alt, className }) {
   const [animate, setAnimate] = useState(false);
   const timeoutRef = useRef(null);
   const overlayRef = useRef(null);
+  const imgRef = useRef(null);
 
   // 雙指縮放與拖曳狀態
   const [scale, setScale] = useState(1);
@@ -960,12 +961,17 @@ function SafeImage({ src, alt, className }) {
           let nextX = p.x + dx;
           let nextY = p.y + dy;
           
-          // 動態限制拖曳範圍（防照片被拉出場外不見的白屏）
-          const limit = (scale - 1) * 160 + 50; 
-          return {
-            x: Math.max(-limit, Math.min(limit, nextX)),
-            y: Math.max(-limit, Math.min(limit, nextY))
-          };
+          // 動態限制拖曳範圍：精準計算照片邊界，不讓黑底額外露出來
+          if (imgRef.current) {
+            const w = imgRef.current.offsetWidth;
+            const h = imgRef.current.offsetHeight;
+            const maxX = Math.max(0, (w * scale - w) / 2);
+            const maxY = Math.max(0, (h * scale - h) / 2);
+            nextX = Math.max(-maxX, Math.min(maxX, nextX));
+            nextY = Math.max(-maxY, Math.min(maxY, nextY));
+          }
+          
+          return { x: nextX, y: nextY };
         });
       }
       lastPos.current = { x: curX, y: curY };
@@ -976,6 +982,10 @@ function SafeImage({ src, alt, className }) {
     if (e.touches.length === 0) {
       lastDist.current = null;
       lastPos.current = null;
+      // 判斷如果縮放小於等於原尺寸1倍，自動吸附回畫面正中間
+      if (scale <= 1) {
+        setPos({ x: 0, y: 0 });
+      }
     } else if (e.touches.length === 1) {
       // 兩指變一指時，讓那一指重新歸零，防瞬間暴衝
       lastDist.current = null;
@@ -1006,6 +1016,7 @@ function SafeImage({ src, alt, className }) {
         >
           <div className={`w-full h-full flex flex-col items-center justify-center transition-transform duration-300 ease-out ${animate ? 'scale-100' : 'scale-[0.98]'}`}>
             <img
+              ref={imgRef}
               src={src}
               alt={alt}
               onTouchStart={handleTouchStart}
