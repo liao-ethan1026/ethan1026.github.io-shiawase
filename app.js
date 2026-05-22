@@ -896,7 +896,6 @@ function ReceiptRow({ name, qty, price }) {
 function SafeImage({ src, alt, className }) {
   const [show, setShow] = useState(false);
   const [animate, setAnimate] = useState(false);
-  const timeoutRef = useRef(null);
   const overlayRef = useRef(null);
   const imgRef = useRef(null);
 
@@ -924,23 +923,14 @@ function SafeImage({ src, alt, className }) {
     };
   }, [show]);
 
-  const startPress = () => {
-    timeoutRef.current = setTimeout(() => {
-      setShow(true);
-      // 復原初始狀態
-      setScale(1);
-      setPos({ x: 0, y: 0 });
-      lastDist.current = null;
-      lastPos.current = null;
-      setTimeout(() => setAnimate(true), 10);
-    }, 400); // 400毫秒視為長壓
-  };
-
-  const cancelPress = () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
+  const handleOpen = () => {
+    setShow(true);
+    // 復原初始狀態
+    setScale(1);
+    setPos({ x: 0, y: 0 });
+    lastDist.current = null;
+    lastPos.current = null;
+    setTimeout(() => setAnimate(true), 10);
   };
 
   const closePreview = () => {
@@ -1037,12 +1027,7 @@ function SafeImage({ src, alt, className }) {
         style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', WebkitUserDrag: 'none' }}
         draggable="false"
         onContextMenu={(e) => e.preventDefault()}
-        onTouchStart={startPress}
-        onMouseDown={startPress}
-        onTouchEnd={cancelPress}
-        onMouseUp={cancelPress}
-        onTouchMove={cancelPress}
-        onMouseLeave={cancelPress}
+        onClick={handleOpen}
       />
       {show && (
         <div
