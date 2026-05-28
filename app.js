@@ -659,7 +659,7 @@ function App() {
 
               {form.deliveryMethod === "pickup" && (
                 <div className="bg-orange-50 text-orange-600 p-3 rounded-xl text-sm font-medium border border-orange-100 text-center shadow-sm">
-                  將於訂單確認後附上取貨地址。
+                  將於訂單確認後附上取貨地址
                 </div>
               )}
 
