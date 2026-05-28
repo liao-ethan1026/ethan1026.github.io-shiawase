@@ -669,6 +669,12 @@ function App() {
                 </div>
               )}
 
+              {form.deliveryMethod === "lalamove" && (
+                <div className="bg-orange-50 text-orange-600 p-3 rounded-xl text-sm font-medium border border-orange-100 text-center shadow-sm">
+                  Lalamove 運費自付
+                </div>
+              )}
+
               <input
                 type="text"
                 placeholder="聯絡人姓名 *"
@@ -687,9 +693,6 @@ function App() {
 
               {form.deliveryMethod === "lalamove" && (
                 <>
-                  <div className="bg-orange-50 text-orange-600 p-3 rounded-xl text-sm font-medium border border-orange-100 text-center shadow-sm mb-2">
-                    Lalamove 運費自付
-                  </div>
                   <div className="flex gap-2">
                     <select
                       value={form.city}
