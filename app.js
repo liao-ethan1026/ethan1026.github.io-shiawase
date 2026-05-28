@@ -717,6 +717,10 @@ function App() {
             )}
           </div>
 
+          <p className="text-red-600 font-bold mb-6 text-sm bg-red-50 p-3 rounded-lg border border-red-100">
+            ⚠️ 注意事項：所有餐點都需預訂，接單確認才會製做喔！
+          </p>
+
           <button
             onClick={() => {
               if (liff.isInClient()) {
