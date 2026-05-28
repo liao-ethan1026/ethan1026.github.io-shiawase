@@ -11,19 +11,19 @@ const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby4F9gl7ZhdXfIv
 const MENU = [
   {
     type: "two-options",
-    title: "招牌素刈包",
+    title: "招牌素滷肉刈包",
     image: "./images/bao.png?v=3",
     options: [
-      { id: "baoWith", flexName: "素刈包(加香菜)", uiName: "素刈包 (加香菜)", shortName: "加香菜", price: 60, isBao: true },
-      { id: "baoWithout", flexName: "素刈包(不香菜)", uiName: "素刈包 (不香菜)", shortName: "不香菜", price: 60, isBao: true }
+      { id: "baoWith", flexName: "素滷肉刈包(加香菜)", uiName: "素滷肉刈包 (加香菜)", shortName: "加香菜", price: 60, isBao: true },
+      { id: "baoWithout", flexName: "素滷肉刈包(不香菜)", uiName: "素滷肉刈包 (不香菜)", shortName: "不香菜", price: 60, isBao: true }
     ]
   },
   {
     type: "single",
     id: "platter",
-    title: "特製滷味拼盤",
-    flexName: "特製滷味拼盤",
-    uiName: "特製滷味拼盤",
+    title: "特製素滷味拼盤",
+    flexName: "特製素滷味拼盤",
+    uiName: "特製素滷味拼盤",
     description: "大份量聚餐首選",
     image: "./images/platter.png?v=3",
     price: 600,
@@ -32,9 +32,9 @@ const MENU = [
   {
     type: "single",
     id: "soup",
-    title: "素補湯",
-    flexName: "素補湯",
-    uiName: "素補湯",
+    title: "素藥膳補湯(一碗約500ml)",
+    flexName: "素藥膳補湯(一碗約500ml)",
+    uiName: "素藥膳補湯(一碗約500ml)",
     description: "暖胃養生推薦",
     image: "./images/soup.png?v=3",
     price: 60
@@ -42,9 +42,9 @@ const MENU = [
   {
     type: "single",
     id: "soyMilk",
-    title: "豆漿 (常溫)",
-    flexName: "豆漿(常溫)",
-    uiName: "豆漿 (常溫)",
+    title: "非基改豆漿(500cc)",
+    flexName: "非基改豆漿(500cc)",
+    uiName: "非基改豆漿(500cc)",
     description: "香醇濃郁",
     image: "./images/soymilk.png?v=3",
     price: 30
@@ -272,7 +272,7 @@ function App() {
 
     return {
       type: "flex",
-      altText: "幸福蔬食訂單明細",
+      altText: "大嫂素食刈包訂單明細",
       contents: {
         type: "bubble",
         size: "mega",
@@ -283,7 +283,7 @@ function App() {
           contents: [
             {
               type: "text",
-              text: "幸福蔬食 訂單明細",
+              text: "大嫂素食刈包 訂單明細",
               weight: "bold",
               size: "xl",
               color: "#EA580C"
@@ -485,11 +485,11 @@ function App() {
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 text-center shadow-2xl max-w-sm w-full border border-orange-100">
             <div className="w-16 h-16 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto mb-3 text-3xl">📢</div>
-            <h2 className="text-xl font-bold mb-3 text-gray-800">幸福蔬食 外送公告</h2>
+            <h2 className="text-xl font-bold mb-3 text-gray-800">大嫂素食刈包 外送公告</h2>
             <div className="text-sm text-gray-600 space-y-2 mb-6 text-left bg-gray-50 p-4 rounded-xl border">
               <p className="font-semibold text-center text-gray-700 mb-1">本店外送需達以下任一門檻才接單：</p>
               <p className="text-orange-600 font-bold">📍 方案 A：刈包總數量大於等於 30 顆</p>
-              <p className="text-orange-600 font-bold">📍 方案 B：特製滷味拼盤大於等於 3 盤</p>
+              <p className="text-orange-600 font-bold">📍 方案 B：特製素滷味拼盤大於等於 3 盤</p>
               <p className="text-xs text-gray-400 pt-2 text-center border-t">您可以先挑選餐點，系統將在結帳時自動審核門檻</p>
             </div>
             <button
@@ -505,7 +505,7 @@ function App() {
       {stage === 1 && (
         <div className="pb-24">
           <header className="bg-orange-600 text-white p-4 sticky top-0 z-10 text-center shadow-md">
-            <h1 className="text-xl font-bold">幸福蔬食線上點餐</h1>
+            <h1 className="text-xl font-bold">大嫂素食刈包線上點餐</h1>
             <p className="text-xs mt-1 opacity-90">
               {liffReady ? (isLineClient ? "LINE 已連線" : "非 LINE 測試模式") : "LINE 初始化中..."}
             </p>
@@ -742,7 +742,7 @@ function App() {
             fontWeight: "bold",
             letterSpacing: "2px"
           }}>
-            幸福蔬食 訂單出單明細
+            大嫂素食刈包 訂單出單明細
           </h2>
 
           <div style={{
