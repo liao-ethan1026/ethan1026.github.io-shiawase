@@ -81,6 +81,7 @@ function App() {
   const [form, setForm] = useState({
     name: "",
     phone: "",
+    deliveryMethod: "lalamove",
     city: "",
     district: "",
     addressDetail: "",
@@ -397,8 +398,21 @@ function App() {
   }
 
   const submitOrder = async () => {
-    if (!form.name || !form.phone || !form.city || !form.district || !form.addressDetail || !form.time) {
-      showToastMessage("⚠️ 請完整填寫外送聯絡資訊（姓名、電話、地址與時間皆為必填喔！）");
+    let completeAddress = "";
+    if (form.deliveryMethod === "pickup") {
+      completeAddress = "自取 (將於訂單確認後附上取貨地址)";
+    } else if (form.deliveryMethod === "fullon") {
+      completeAddress = "淡水福容飯店 (大嫂親送)";
+    } else {
+      if (!form.city || !form.district || !form.addressDetail) {
+        showToastMessage("⚠️ 請完整填寫外送地址資訊喔！");
+        return;
+      }
+      completeAddress = form.city + form.district + form.addressDetail;
+    }
+
+    if (!form.name || !form.phone || !form.time) {
+      showToastMessage("⚠️ 請完整填寫姓名、電話與時間等聯絡資訊喔！");
       return;
     }
 
@@ -407,15 +421,12 @@ function App() {
       return;
     }
 
-    if (!isThresholdMet) {
+    if (!isThresholdMet && form.deliveryMethod === "lalamove") {
       showToastMessage("⚠️ 未達外送門檻：刈包最少 30 顆，或滷味最少 3 盤才可以送單喔！");
       return;
     }
 
     setIsSubmitting(true);
-
-    // 自動組合完整地址給後端與 LINE 訊息使用
-    const completeAddress = form.city + form.district + form.addressDetail;
 
     const finalOrder = {
       orderId: createClientOrderId(),
@@ -620,14 +631,50 @@ function App() {
             </div>
 
             <div className="space-y-3">
-              <h3 className="font-bold text-gray-700 pl-1">外送聯絡資訊</h3>
+              <h3 className="font-bold text-gray-700 pl-1">取餐/外送方式</h3>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, deliveryMethod: "pickup" })}
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-colors ${form.deliveryMethod === "pickup" ? "bg-orange-600 text-white border-orange-600" : "bg-white text-gray-700 border-gray-300"}`}
+                >
+                  自取
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, deliveryMethod: "fullon" })}
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-colors ${form.deliveryMethod === "fullon" ? "bg-orange-600 text-white border-orange-600" : "bg-white text-gray-700 border-gray-300"}`}
+                >
+                  淡水福容飯店
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, deliveryMethod: "lalamove" })}
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-colors ${form.deliveryMethod === "lalamove" ? "bg-orange-600 text-white border-orange-600" : "bg-white text-gray-700 border-gray-300"}`}
+                >
+                  LALAMOVE
+                </button>
+              </div>
+
+              {form.deliveryMethod === "pickup" && (
+                <div className="bg-orange-50 text-orange-600 p-3 rounded-xl text-sm font-medium border border-orange-100 text-center shadow-sm">
+                  將於訂單確認後附上取貨地址。
+                </div>
+              )}
+
+              {form.deliveryMethod === "fullon" && (
+                <div className="bg-orange-50 text-orange-600 p-3 rounded-xl text-sm font-medium border border-orange-100 text-center shadow-sm">
+                  大嫂親送不用運費
+                </div>
+              )}
 
               <input
                 type="text"
                 placeholder="聯絡人姓名 *"
                 value={form.name}
                 onChange={e => setForm({ ...form, name: e.target.value })}
-                className="w-full border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500 mt-2"
               />
 
               <input
@@ -638,41 +685,45 @@ function App() {
                 className="w-full border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
 
-              <div className="flex gap-2">
-                <select
-                  value={form.city}
-                  onChange={e => setForm({ ...form, city: e.target.value, district: "" })}
-                  className="w-1/2 border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
-                >
-                  <option value="" disabled>請選擇縣市 *</option>
-                  {Object.keys(TAIWAN_ZONES).map(city => (
-                    <option key={city} value={city}>{city}</option>
-                  ))}
-                </select>
+              {form.deliveryMethod === "lalamove" && (
+                <>
+                  <div className="flex gap-2">
+                    <select
+                      value={form.city}
+                      onChange={e => setForm({ ...form, city: e.target.value, district: "" })}
+                      className="w-1/2 border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                    >
+                      <option value="" disabled>請選擇縣市 *</option>
+                      {Object.keys(TAIWAN_ZONES).map(city => (
+                        <option key={city} value={city}>{city}</option>
+                      ))}
+                    </select>
 
-                <select
-                  value={form.district}
-                  onChange={e => setForm({ ...form, district: e.target.value })}
-                  className="w-1/2 border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
-                  disabled={!form.city}
-                >
-                  <option value="" disabled>請選擇區域 *</option>
-                  {form.city && TAIWAN_ZONES[form.city].map(dist => (
-                    <option key={dist} value={dist}>{dist}</option>
-                  ))}
-                </select>
-              </div>
+                    <select
+                      value={form.district}
+                      onChange={e => setForm({ ...form, district: e.target.value })}
+                      className="w-1/2 border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                      disabled={!form.city}
+                    >
+                      <option value="" disabled>請選擇區域 *</option>
+                      {form.city && TAIWAN_ZONES[form.city].map(dist => (
+                        <option key={dist} value={dist}>{dist}</option>
+                      ))}
+                    </select>
+                  </div>
 
-              <input
-                type="text"
-                placeholder="送餐詳細地址（路名、段、巷弄、樓層） *"
-                value={form.addressDetail}
-                onChange={e => setForm({ ...form, addressDetail: e.target.value })}
-                className="w-full border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
+                  <input
+                    type="text"
+                    placeholder="送餐詳細地址（路名、段、巷弄、樓層） *"
+                    value={form.addressDetail}
+                    onChange={e => setForm({ ...form, addressDetail: e.target.value })}
+                    className="w-full border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </>
+              )}
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1 pl-1">期望送餐時間 *</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1 pl-1">期望取餐/送餐時間 *</label>
                 <input
                   type="time"
                   value={form.time}
