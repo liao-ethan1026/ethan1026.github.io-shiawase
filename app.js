@@ -492,6 +492,10 @@ function App() {
               <p className="text-orange-600 font-bold">📍 方案 B：特製素滷味拼盤大於等於 3 盤</p>
               <p className="text-xs text-gray-400 pt-2 text-center border-t">您可以先挑選餐點，系統將在結帳時自動審核門檻</p>
             </div>
+            <p className="text-sm font-bold text-gray-800 mb-4">
+              大量/團體活動訂餐請私訊或來電<br />
+              <a href="tel:0938093816" className="text-orange-600 text-lg">0938093816</a>
+            </p>
             <button
               onClick={() => setShowAnnounce(false)}
               className="w-full bg-orange-600 text-white font-bold py-3.5 rounded-xl active:bg-orange-700 shadow-md"
