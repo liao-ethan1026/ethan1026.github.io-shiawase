@@ -343,6 +343,14 @@ function App() {
             },
             {
               type: "text",
+              text: `訂單類別：${order.orderType}`,
+              size: "sm",
+              wrap: true,
+              weight: "bold",
+              color: "#111111"
+            },
+            {
+              type: "text",
               text: `訂購人：${order.form.name}`,
               size: "sm",
               wrap: true
@@ -692,43 +700,44 @@ function App() {
             <div className="space-y-3">
               <h3 className="font-bold text-gray-700 pl-1">取餐/外送方式</h3>
 
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, deliveryMethod: "pickup" })}
-                  className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-colors ${form.deliveryMethod === "pickup" ? "bg-orange-600 text-white border-orange-600" : "bg-white text-gray-700 border-gray-300"}`}
-                >
-                  自取
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, deliveryMethod: "fullon" })}
-                  className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-colors ${form.deliveryMethod === "fullon" ? "bg-orange-600 text-white border-orange-600" : "bg-white text-gray-700 border-gray-300"}`}
-                >
-                  淡水福容飯店
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, deliveryMethod: "lalamove" })}
-                  className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-colors ${form.deliveryMethod === "lalamove" ? "bg-orange-600 text-white border-orange-600" : "bg-white text-gray-700 border-gray-300"}`}
-                >
-                  LALAMOVE
-                </button>
-              </div>
+              {orderType === "fulon" ? (
+                <div className="flex gap-2">
+                  <div className="flex-1 py-3 rounded-xl text-sm font-bold border border-orange-600 bg-orange-600 text-white text-center shadow-sm">
+                    淡水福容飯店 (大嫂親送)
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, deliveryMethod: "pickup" })}
+                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-colors ${form.deliveryMethod === "pickup" ? "bg-orange-600 text-white border-orange-600" : "bg-white text-gray-700 border-gray-300"}`}
+                  >
+                    自取
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, deliveryMethod: "lalamove" })}
+                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-colors ${form.deliveryMethod === "lalamove" ? "bg-orange-600 text-white border-orange-600" : "bg-white text-gray-700 border-gray-300"}`}
+                  >
+                    LALAMOVE
+                  </button>
+                </div>
+              )}
 
-              {form.deliveryMethod === "pickup" && (
+              {orderType === "other" && form.deliveryMethod === "pickup" && (
                 <div className="bg-orange-50 text-orange-600 p-3 rounded-xl text-sm font-medium border border-orange-100 text-center shadow-sm">
                   將於訂單確認後附上取貨地址
                 </div>
               )}
 
-              {form.deliveryMethod === "fullon" && (
+              {orderType === "fulon" && (
                 <div className="bg-orange-50 text-orange-600 p-3 rounded-xl text-sm font-medium border border-orange-100 text-center shadow-sm">
                   大嫂親送不用運費
                 </div>
               )}
 
-              {form.deliveryMethod === "lalamove" && (
+              {orderType === "other" && form.deliveryMethod === "lalamove" && (
                 <div className="bg-orange-50 text-orange-600 p-3 rounded-xl text-sm font-medium border border-orange-100 text-center shadow-sm">
                   Lalamove 運費自付
                 </div>
@@ -875,6 +884,7 @@ function App() {
             marginTop: "12px"
           }}>
             <p><strong>訂單編號：</strong>{orderResult?.orderId}</p>
+            <p><strong>訂餐類別：</strong>{orderResult?.orderType}</p>
             <p><strong>下單時間：</strong>{orderResult?.timestamp}</p>
             <p><strong>客戶姓名：</strong>{orderResult?.form.name}</p>
             <p><strong>聯絡電話：</strong>{orderResult?.form.phone}</p>
