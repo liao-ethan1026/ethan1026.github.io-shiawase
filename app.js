@@ -32,9 +32,9 @@ const MENU = [
   {
     type: "single",
     id: "soup",
-    title: "素藥膳補湯(一碗約500ml)",
-    flexName: "素藥膳補湯(一碗約500ml)",
-    uiName: "素藥膳補湯(一碗約500ml)",
+    title: "素藥膳補湯(一碗)",
+    flexName: "素藥膳補湯(一碗)",
+    uiName: "素藥膳補湯(一碗)",
     description: "暖胃養生推薦",
     image: "./images/soup.png?v=4",
     price: 60
