@@ -87,6 +87,7 @@ function App() {
     city: "",
     district: "",
     addressDetail: "",
+    date: "",
     time: "",
     note: ""
   });
@@ -395,6 +396,12 @@ function App() {
             },
             {
               type: "text",
+              text: `期望日期：${order.form.date}`,
+              size: "sm",
+              wrap: true
+            },
+            {
+              type: "text",
               text: `期望時間：${order.form.time}`,
               size: "sm",
               wrap: true
@@ -457,8 +464,8 @@ function App() {
       completeAddress = form.city + form.district + form.addressDetail;
     }
 
-    if (!form.name || !form.phone || !form.time) {
-      showToastMessage("請完整填寫姓名、電話與時間等聯絡資訊喔！");
+    if (!form.name || !form.phone || !form.date || !form.time) {
+      showToastMessage("請完整填寫姓名、電話與日期時間等聯絡資訊喔！");
       return;
     }
 
@@ -850,14 +857,25 @@ function App() {
                 </>
               )}
 
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1 pl-1">期望取餐/送餐時間 *</label>
-                <input
-                  type="time"
-                  value={form.time}
-                  onChange={e => setForm({ ...form, time: e.target.value })}
-                  className="w-full border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
-                />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-500 mb-1 pl-1">期望日期 *</label>
+                  <input
+                    type="date"
+                    value={form.date}
+                    onChange={e => setForm({ ...form, date: e.target.value })}
+                    className="w-full border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-500 mb-1 pl-1">期望時間 *</label>
+                  <input
+                    type="time"
+                    value={form.time}
+                    onChange={e => setForm({ ...form, time: e.target.value })}
+                    className="w-full border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                  />
+                </div>
               </div>
 
               <div>
@@ -943,6 +961,7 @@ function App() {
             <p><strong>客戶姓名：</strong>{orderResult?.form.name}</p>
             <p><strong>聯絡電話：</strong>{orderResult?.form.phone}</p>
             <p><strong>外送地址：</strong>{orderResult?.form.address}</p>
+            <p><strong>期望日期：</strong>{orderResult?.form.date}</p>
             <p><strong>期望時間：</strong>{orderResult?.form.time}</p>
             <p><strong>特別備註：</strong><span style={{ color: "red", fontWeight: "bold" }}>{orderResult?.form.note || "無"}</span></p>
           </div>
