@@ -230,16 +230,17 @@ function App() {
 
   const createClientOrderId = () => {
     const now = new Date();
-
-    const yyyy = now.getFullYear();
     const mm = pad(now.getMonth() + 1);
     const dd = pad(now.getDate());
-    const hh = pad(now.getHours());
-    const mi = pad(now.getMinutes());
-    const ss = pad(now.getSeconds());
-    const random = Math.floor(1000 + Math.random() * 9000);
+    
+    // 依據訂餐地點設定前綴字首 (F: 福容, O: 其他)
+    const prefix = orderType === "fulon" ? "F" : "O";
+    
+    // 取得電話末三碼。如果沒有填寫，預設補上 000 防呆
+    const phoneStr = form.phone || "000";
+    const phoneLast3 = phoneStr.slice(-3).padStart(3, "0");
 
-    return `${yyyy}${mm}${dd}-${hh}${mi}${ss}-${random}`;
+    return `${prefix}${mm}${dd}-${phoneLast3}`;
   };
 
   const formatTimestamp = () => {
