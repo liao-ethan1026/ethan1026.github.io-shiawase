@@ -462,6 +462,11 @@ function App() {
       return;
     }
 
+    if (!/^\d{10}$/.test(form.phone)) {
+      showToastMessage("⚠️ 請輸入有效的 10 碼電話號碼！");
+      return;
+    }
+
     if (totalItems === 0) {
       showToastMessage("您的購物車還是空的，請先挑選餐點喔！");
       return;
