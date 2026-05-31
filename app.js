@@ -74,7 +74,7 @@ const TAIWAN_ZONES = {
 
 function App() {
   const [stage, setStage] = useState(1);
-  const [showAnnounce, setShowAnnounce] = useState(true);
+  const [orderType, setOrderType] = useState(null);
 
   const [cart, setCart] = useState(INITIAL_CART);
 
@@ -178,7 +178,19 @@ function App() {
     }
   });
 
-  const isThresholdMet = totalBao >= 30 || totalPlatter >= 3;
+  let isThresholdMet = false;
+  let thresholdMsg = "";
+  if (orderType === "fulon") {
+    isThresholdMet = totalBao >= 30 || totalPlatter >= 3;
+    thresholdMsg = "尚未達到淡水福容飯店訂餐門檻：刈包需 30 顆以上，或素滷味拼盤需 3 盤以上。";
+  } else if (orderType === "other") {
+    isThresholdMet = totalBao >= 10 || totalPlatter >= 1;
+    thresholdMsg = "尚未達到訂餐門檻：刈包需 10 顆以上，或素滷味拼盤 1 盤即可訂購。";
+  }
+
+  const soupQty = cart['soup'] || 0;
+  const isSoupValid = soupQty === 0 || soupQty >= 10;
+  const soupMsg = "補湯需 10 碗以上才可訂購。";
 
   const updateQty = (key, delta) => {
     setCart(prev => ({
@@ -421,8 +433,13 @@ function App() {
       return;
     }
 
-    if (!isThresholdMet && form.deliveryMethod === "lalamove") {
-      showToastMessage("⚠️ 未達外送門檻：刈包最少 30 顆，或滷味最少 3 盤才可以送單喔！");
+    if (!isThresholdMet) {
+      showToastMessage("⚠️ " + thresholdMsg);
+      return;
+    }
+
+    if (!isSoupValid) {
+      showToastMessage("⚠️ " + soupMsg);
       return;
     }
 
@@ -431,6 +448,7 @@ function App() {
     const finalOrder = {
       orderId: createClientOrderId(),
       timestamp: formatTimestamp(),
+      orderType: orderType === "fulon" ? "淡水福容飯店" : "其他",
       items: { ...cart },
       form: { ...form, address: completeAddress },
       totalAmount: totalAmount,
@@ -492,27 +510,53 @@ function App() {
         </div>
       )}
 
-      {showAnnounce && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 text-center shadow-2xl max-w-sm w-full border border-orange-100">
-            <div className="w-16 h-16 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto mb-3 text-3xl">📢</div>
-            <h2 className="text-xl font-bold mb-3 text-gray-800">大嫂素食刈包 外送公告</h2>
-            <div className="text-sm text-gray-600 space-y-2 mb-6 text-left bg-gray-50 p-4 rounded-xl border">
-              <p className="font-semibold text-center text-gray-700 mb-1">本店外送需達以下任一門檻才接單：</p>
-              <p className="text-orange-600 font-bold">📍 方案 A：刈包總數量大於等於 30 顆</p>
-              <p className="text-orange-600 font-bold">📍 方案 B：特製素滷味拼盤大於等於 3 盤</p>
-              <p className="text-xs text-gray-400 pt-2 text-center border-t">您可以先挑選餐點，系統將在結帳時自動審核門檻</p>
+      {!orderType && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-sm w-full border border-orange-100">
+            <h2 className="text-2xl font-black mb-2 text-center text-gray-800">請問您的訂餐地點是？</h2>
+            <p className="text-sm text-gray-600 mb-6 font-medium text-center">系統會依照您選擇的地點，自動套用對應的訂餐門檻與取餐方式。</p>
+
+            <div className="space-y-4">
+              <button
+                onClick={() => {
+                  setOrderType("fulon");
+                  setForm({ ...form, deliveryMethod: "fullon" });
+                }}
+                className="w-full text-left bg-orange-50 border-2 border-orange-400 hover:bg-orange-100 p-4 rounded-2xl transition-all shadow-sm relative block cursor-pointer"
+              >
+                <div className="absolute top-0 right-0 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl shadow-sm">
+                  大嫂親送
+                </div>
+                <h3 className="text-xl font-bold text-orange-800 mb-1 mt-1">淡水福容飯店</h3>
+                <p className="text-sm text-gray-700 font-bold border-t border-orange-200 pt-2 mt-2">
+                  訂餐門檻：刈包 30 顆以上，或素滷味拼盤 3 盤以上
+                </p>
+              </button>
+
+              <button
+                onClick={() => {
+                  setOrderType("other");
+                  setForm({ ...form, deliveryMethod: "pickup" });
+                }}
+                className="w-full text-left bg-gray-50 border-2 border-gray-300 hover:bg-gray-100 p-4 rounded-2xl transition-all shadow-sm block cursor-pointer"
+              >
+                <h3 className="text-xl font-bold text-gray-800 mb-1">其他</h3>
+                <p className="text-xs text-gray-600 font-bold mb-2">自取 或 Lalamove（運費自付）</p>
+                <p className="text-sm text-gray-700 font-bold border-t border-gray-200 pt-2 mt-2">
+                  訂餐門檻：刈包 10 顆以上，素滷味拼盤 1 盤即可訂購
+                </p>
+              </button>
             </div>
-            <p className="text-sm font-bold text-gray-800 mb-4">
+
+            <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-3 text-left">
+              <p className="text-sm text-blue-800 font-bold">💡 補湯訂購提醒：</p>
+              <p className="text-xs text-blue-700 mt-1">若有訂購補湯，補湯數量需達 10 碗以上，訂單才可成立。</p>
+            </div>
+            
+            <p className="text-sm font-bold text-gray-800 mt-6 pt-4 border-t text-center">
               大量/團體活動訂餐請私訊或來電<br />
               <a href="tel:0938093816" className="text-orange-600 text-lg">0938093816</a>
             </p>
-            <button
-              onClick={() => setShowAnnounce(false)}
-              className="w-full bg-orange-600 text-white font-bold py-3.5 rounded-xl active:bg-orange-700 shadow-md"
-            >
-              同意並開始點餐
-            </button>
           </div>
         </div>
       )}
@@ -521,7 +565,12 @@ function App() {
         <div className="pb-24">
           <header className="bg-orange-600 text-white p-4 sticky top-0 z-10 text-center shadow-md">
             <h1 className="text-xl font-bold">大嫂素食刈包線上點餐</h1>
-            <p className="text-xs mt-1 opacity-90">
+            {orderType && (
+              <div className="bg-orange-800 text-orange-100 text-xs py-1 px-3 rounded-full inline-block mt-2 font-bold shadow-inner">
+                目前訂餐類型：{orderType === "fulon" ? "淡水福容飯店" : "其他"}
+              </div>
+            )}
+            <p className="text-xs mt-2 opacity-90">
               {liffReady ? (isLineClient ? "LINE 已連線" : "非 LINE 測試模式") : "LINE 初始化中..."}
             </p>
           </header>
@@ -621,10 +670,20 @@ function App() {
 
               {!isThresholdMet && (
                 <div className="mt-4 bg-red-50 border border-red-400 p-3 rounded-xl text-red-600 font-bold text-center text-sm shadow-inner animate-pulse">
-                  ⚠️ 外送未達標：刈包最少 30 顆，或滷味最少 3 盤才可以送單喔！
+                  ⚠️ {thresholdMsg}
                   <br />
                   <span className="text-xs font-normal text-gray-500">
                     目前刈包：{totalBao} 顆 / 滷味：{totalPlatter} 盤
+                  </span>
+                </div>
+              )}
+
+              {!isSoupValid && (
+                <div className="mt-4 bg-red-50 border border-red-400 p-3 rounded-xl text-red-600 font-bold text-center text-sm shadow-inner animate-pulse">
+                  ⚠️ {soupMsg}
+                  <br />
+                  <span className="text-xs font-normal text-gray-500">
+                    目前補湯：{soupQty} 碗
                   </span>
                 </div>
               )}
