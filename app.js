@@ -463,7 +463,7 @@ function App() {
     }
 
     if (!/^\d{10}$/.test(form.phone)) {
-      showToastMessage("⚠️ 請輸入有效的 10 碼電話號碼！");
+      showToastMessage("請輸入有效的 10 碼電話號碼！");
       return;
     }
 
