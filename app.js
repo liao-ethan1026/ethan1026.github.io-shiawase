@@ -691,7 +691,7 @@ function App() {
       )}
 
       {stage === 2 && (
-        <div className="pb-32">
+        <div className="pb-32 min-h-screen" onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
           <header className="bg-orange-600 text-white p-4 sticky top-0 z-10 flex items-center shadow-md">
             <button onClick={() => setStage(1)} className="text-white p-2 font-bold text-lg">← 返回</button>
             <h1 className="text-xl font-bold ml-4">確認餐點明細</h1>
