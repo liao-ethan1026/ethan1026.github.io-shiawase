@@ -451,19 +451,19 @@ function App() {
       completeAddress = "淡水福容飯店 (大嫂親送)";
     } else {
       if (!form.city || !form.district || !form.addressDetail) {
-        showToastMessage("⚠️ 請完整填寫外送地址資訊喔！");
+        showToastMessage("請完整填寫外送地址資訊喔！");
         return;
       }
       completeAddress = form.city + form.district + form.addressDetail;
     }
 
     if (!form.name || !form.phone || !form.time) {
-      showToastMessage("⚠️ 請完整填寫姓名、電話與時間等聯絡資訊喔！");
+      showToastMessage("請完整填寫姓名、電話與時間等聯絡資訊喔！");
       return;
     }
 
     if (totalItems === 0) {
-      showToastMessage("⚠️ 您的購物車還是空的，請先挑選餐點喔！");
+      showToastMessage("您的購物車還是空的，請先挑選餐點喔！");
       return;
     }
 
@@ -579,7 +579,7 @@ function App() {
             <button
               onClick={() => {
                 if (!tempOrderType) {
-                  showToastMessage("⚠️ 請先選擇一個訂餐地點喔！");
+                  showToastMessage("請先選擇一個訂餐地點喔！");
                   return;
                 }
                 setOrderType(tempOrderType);
@@ -677,7 +677,7 @@ function App() {
             <button
               onClick={() => {
                 if (totalItems === 0) {
-                  showToastMessage("⚠️ 您的購物車還是空的，請先挑選餐點喔！");
+                  showToastMessage("您的購物車還是空的，請先挑選餐點喔！");
                   return;
                 }
 
