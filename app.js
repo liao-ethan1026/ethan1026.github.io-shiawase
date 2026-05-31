@@ -75,6 +75,8 @@ const TAIWAN_ZONES = {
 function App() {
   const [stage, setStage] = useState(1);
   const [orderType, setOrderType] = useState(null);
+  const [showLocationModal, setShowLocationModal] = useState(true);
+  const [tempOrderType, setTempOrderType] = useState(null);
 
   const [cart, setCart] = useState(INITIAL_CART);
 
@@ -99,6 +101,29 @@ function App() {
     message: "",
     isWarning: true
   });
+
+  const swipeStartX = useRef(null);
+  const swipeStartY = useRef(null);
+
+  const handleSwipeStart = (e) => {
+    swipeStartX.current = e.touches[0].clientX;
+    swipeStartY.current = e.touches[0].clientY;
+  };
+
+  const handleSwipeEnd = (e) => {
+    if (swipeStartX.current === null) return;
+    const swipeEndX = e.changedTouches[0].clientX;
+    const swipeEndY = e.changedTouches[0].clientY;
+    const dx = swipeEndX - swipeStartX.current;
+    const dy = swipeEndY - swipeStartY.current;
+
+    // 右滑：從畫面左側邊緣開始(<=50px)，且向右滑動距離>60px，且水平位移大於垂直位移
+    if (swipeStartX.current <= 50 && dx > 60 && Math.abs(dx) > Math.abs(dy)) {
+      setStage(1);
+    }
+    swipeStartX.current = null;
+    swipeStartY.current = null;
+  };
 
   useEffect(() => {
     async function initLiff() {
@@ -518,7 +543,7 @@ function App() {
         </div>
       )}
 
-      {!orderType && (
+      {showLocationModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 shadow-2xl max-w-sm w-full border border-orange-100">
             <h2 className="text-2xl font-black mb-2 text-center text-gray-800">請問您的訂餐地點是？</h2>
@@ -526,35 +551,47 @@ function App() {
 
             <div className="space-y-4">
               <button
-                onClick={() => {
-                  setOrderType("fulon");
-                  setForm({ ...form, deliveryMethod: "fullon" });
-                }}
-                className="w-full text-left bg-orange-50 border-2 border-orange-400 hover:bg-orange-100 p-4 rounded-2xl transition-all shadow-sm relative block cursor-pointer"
+                onClick={() => setTempOrderType("fulon")}
+                className={`w-full text-left p-4 rounded-2xl transition-all shadow-sm relative block cursor-pointer border-2 ${tempOrderType === "fulon" ? "bg-orange-50 border-orange-500 ring-4 ring-orange-200" : "bg-gray-50 border-gray-200 hover:bg-gray-100"}`}
               >
                 <div className="absolute top-0 right-0 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl shadow-sm">
                   大嫂親送
                 </div>
-                <h3 className="text-xl font-bold text-orange-800 mb-1 mt-1">淡水福容飯店</h3>
-                <p className="text-sm text-gray-700 font-bold border-t border-orange-200 pt-2 mt-2">
+                <h3 className={`text-xl font-bold mb-1 mt-1 ${tempOrderType === "fulon" ? "text-orange-800" : "text-gray-800"}`}>淡水福容飯店</h3>
+                <p className="text-sm font-bold border-t border-gray-200 pt-2 mt-2 text-gray-700">
                   訂餐門檻：刈包 30 顆以上，或素滷味拼盤 3 盤以上
                 </p>
               </button>
 
               <button
-                onClick={() => {
-                  setOrderType("other");
-                  setForm({ ...form, deliveryMethod: "pickup" });
-                }}
-                className="w-full text-left bg-gray-50 border-2 border-gray-300 hover:bg-gray-100 p-4 rounded-2xl transition-all shadow-sm block cursor-pointer"
+                onClick={() => setTempOrderType("other")}
+                className={`w-full text-left p-4 rounded-2xl transition-all shadow-sm block cursor-pointer border-2 ${tempOrderType === "other" ? "bg-orange-50 border-orange-500 ring-4 ring-orange-200" : "bg-gray-50 border-gray-200 hover:bg-gray-100"}`}
               >
-                <h3 className="text-xl font-bold text-gray-800 mb-1">其他</h3>
+                <h3 className={`text-xl font-bold mb-1 ${tempOrderType === "other" ? "text-orange-800" : "text-gray-800"}`}>其他</h3>
                 <p className="text-xs text-gray-600 font-bold mb-2">自取 或 Lalamove（運費自付）</p>
-                <p className="text-sm text-gray-700 font-bold border-t border-gray-200 pt-2 mt-2">
+                <p className="text-sm font-bold border-t border-gray-200 pt-2 mt-2 text-gray-700">
                   訂餐門檻：刈包 10 顆以上，素滷味拼盤 1 盤即可訂購
                 </p>
               </button>
             </div>
+
+            <button
+              onClick={() => {
+                if (!tempOrderType) {
+                  showToastMessage("⚠️ 請先選擇一個訂餐地點喔！");
+                  return;
+                }
+                setOrderType(tempOrderType);
+                setForm(prev => ({ 
+                  ...prev, 
+                  deliveryMethod: tempOrderType === "fulon" ? "fullon" : "pickup" 
+                }));
+                setShowLocationModal(false);
+              }}
+              className={`w-full mt-6 py-4 rounded-xl font-bold text-white shadow-md text-lg transition-all ${tempOrderType ? "bg-orange-600 active:bg-orange-700 hover:bg-orange-500" : "bg-gray-300 cursor-not-allowed"}`}
+            >
+              確認方案並開始點餐
+            </button>
 
             <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-3 text-left">
               <p className="text-sm text-blue-800 font-bold">💡 補湯訂購提醒：</p>
@@ -574,8 +611,19 @@ function App() {
           <header className="bg-orange-600 text-white p-4 sticky top-0 z-10 text-center shadow-md">
             <h1 className="text-xl font-bold">大嫂素食刈包線上點餐</h1>
             {orderType && (
-              <div className="bg-orange-800 text-orange-100 text-xs py-1 px-3 rounded-full inline-block mt-2 font-bold shadow-inner">
-                目前訂餐類型：{orderType === "fulon" ? "淡水福容飯店" : "其他"}
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <div className="bg-orange-800 text-orange-100 text-xs py-1.5 px-3 rounded-full font-bold shadow-inner border border-orange-700">
+                  目前訂餐類型：{orderType === "fulon" ? "淡水福容飯店" : "其他"}
+                </div>
+                <button
+                  onClick={() => {
+                    setTempOrderType(orderType);
+                    setShowLocationModal(true);
+                  }}
+                  className="bg-white text-orange-600 text-xs py-1.5 px-3 rounded-full font-bold shadow-sm border border-orange-200 active:bg-gray-100"
+                >
+                  更改方案
+                </button>
               </div>
             )}
             <p className="text-xs mt-2 opacity-90">
