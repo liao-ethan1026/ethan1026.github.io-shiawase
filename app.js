@@ -768,7 +768,7 @@ function App() {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => setForm({ ...form, deliveryMethod: "pickup" })}
@@ -861,14 +861,14 @@ function App() {
                 </>
               )}
 
-              <div className="flex flex-row gap-3">
+              <div className="flex gap-2">
                 <div className="flex-1 min-w-0">
                   <label className="block text-xs font-medium text-gray-500 mb-1 pl-1">預定日期 *</label>
                   <input
                     type="date"
                     value={form.date}
                     onChange={e => setForm({ ...form, date: e.target.value })}
-                    className="w-full border rounded-xl px-2 py-3.5 sm:px-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                    className="w-full border rounded-xl px-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                   />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -877,7 +877,7 @@ function App() {
                     type="time"
                     value={form.time}
                     onChange={e => setForm({ ...form, time: e.target.value })}
-                    className="w-full border rounded-xl px-2 py-3.5 sm:px-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                    className="w-full border rounded-xl px-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                   />
                 </div>
               </div>
