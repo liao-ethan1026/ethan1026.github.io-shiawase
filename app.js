@@ -396,13 +396,13 @@ function App() {
             },
             {
               type: "text",
-              text: `期望日期：${order.form.date}`,
+              text: `預定日期：${order.form.date}`,
               size: "sm",
               wrap: true
             },
             {
               type: "text",
-              text: `期望時間：${order.form.time}`,
+              text: `預定時間：${order.form.time}`,
               size: "sm",
               wrap: true
             },
@@ -768,18 +768,18 @@ function App() {
                   </div>
                 </div>
               ) : (
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     type="button"
                     onClick={() => setForm({ ...form, deliveryMethod: "pickup" })}
-                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-colors ${form.deliveryMethod === "pickup" ? "bg-orange-600 text-white border-orange-600" : "bg-white text-gray-700 border-gray-300"}`}
+                    className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-colors ${form.deliveryMethod === "pickup" ? "bg-orange-600 text-white border-orange-600 shadow-md" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"}`}
                   >
                     自取
                   </button>
                   <button
                     type="button"
                     onClick={() => setForm({ ...form, deliveryMethod: "lalamove" })}
-                    className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-colors ${form.deliveryMethod === "lalamove" ? "bg-orange-600 text-white border-orange-600" : "bg-white text-gray-700 border-gray-300"}`}
+                    className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-colors ${form.deliveryMethod === "lalamove" ? "bg-orange-600 text-white border-orange-600 shadow-md" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"}`}
                   >
                     LALAMOVE
                   </button>
@@ -822,29 +822,33 @@ function App() {
 
               {form.deliveryMethod === "lalamove" && (
                 <>
-                  <div className="flex gap-2">
-                    <select
-                      value={form.city}
-                      onChange={e => setForm({ ...form, city: e.target.value, district: "" })}
-                      className="w-1/2 border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
-                    >
-                      <option value="" disabled>請選擇縣市 *</option>
-                      {Object.keys(TAIWAN_ZONES).map(city => (
-                        <option key={city} value={city}>{city}</option>
-                      ))}
-                    </select>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex-1">
+                      <select
+                        value={form.city}
+                        onChange={e => setForm({ ...form, city: e.target.value, district: "" })}
+                        className="w-full border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                      >
+                        <option value="" disabled>請選擇縣市 *</option>
+                        {Object.keys(TAIWAN_ZONES).map(city => (
+                          <option key={city} value={city}>{city}</option>
+                        ))}
+                      </select>
+                    </div>
 
-                    <select
-                      value={form.district}
-                      onChange={e => setForm({ ...form, district: e.target.value })}
-                      className="w-1/2 border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
-                      disabled={!form.city}
-                    >
-                      <option value="" disabled>請選擇區域 *</option>
-                      {form.city && TAIWAN_ZONES[form.city].map(dist => (
-                        <option key={dist} value={dist}>{dist}</option>
-                      ))}
-                    </select>
+                    <div className="flex-1">
+                      <select
+                        value={form.district}
+                        onChange={e => setForm({ ...form, district: e.target.value })}
+                        className="w-full border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                        disabled={!form.city}
+                      >
+                        <option value="" disabled>請選擇區域 *</option>
+                        {form.city && TAIWAN_ZONES[form.city].map(dist => (
+                          <option key={dist} value={dist}>{dist}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   <input
@@ -857,23 +861,23 @@ function App() {
                 </>
               )}
 
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-500 mb-1 pl-1">期望日期 *</label>
+              <div className="flex flex-row gap-3">
+                <div className="flex-1 min-w-0">
+                  <label className="block text-xs font-medium text-gray-500 mb-1 pl-1">預定日期 *</label>
                   <input
                     type="date"
                     value={form.date}
                     onChange={e => setForm({ ...form, date: e.target.value })}
-                    className="w-full border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                    className="w-full border rounded-xl px-2 py-3.5 sm:px-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                   />
                 </div>
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-500 mb-1 pl-1">期望時間 *</label>
+                <div className="flex-1 min-w-0">
+                  <label className="block text-xs font-medium text-gray-500 mb-1 pl-1">預定時間 *</label>
                   <input
                     type="time"
                     value={form.time}
                     onChange={e => setForm({ ...form, time: e.target.value })}
-                    className="w-full border rounded-xl p-3.5 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                    className="w-full border rounded-xl px-2 py-3.5 sm:px-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                   />
                 </div>
               </div>
@@ -961,8 +965,8 @@ function App() {
             <p><strong>客戶姓名：</strong>{orderResult?.form.name}</p>
             <p><strong>聯絡電話：</strong>{orderResult?.form.phone}</p>
             <p><strong>外送地址：</strong>{orderResult?.form.address}</p>
-            <p><strong>期望日期：</strong>{orderResult?.form.date}</p>
-            <p><strong>期望時間：</strong>{orderResult?.form.time}</p>
+            <p><strong>預定日期：</strong>{orderResult?.form.date}</p>
+            <p><strong>預定時間：</strong>{orderResult?.form.time}</p>
             <p><strong>特別備註：</strong><span style={{ color: "red", fontWeight: "bold" }}>{orderResult?.form.note || "無"}</span></p>
           </div>
 
