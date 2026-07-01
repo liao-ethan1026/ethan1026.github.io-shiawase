@@ -1,78 +1,17 @@
-const { useState, useEffect, useRef } = React;
+import { useState, useEffect, useRef } from "react";
+import liff from "@line/liff";
+import html2canvas from "html2canvas";
 
-const MY_LIFF_ID = "2010149173-LK0mBdYK";
+import { MENU, MENU_ITEMS, INITIAL_CART, TAIWAN_ZONES } from "./menu";
+import { MY_LIFF_ID } from "./config";
+import { sendOrderMessageToLineChat, saveOrderToGoogleSheet } from "./api";
 
-/**
- * 這裡貼上 Apps Script Web App 的 /exec 網址
- */
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycby4F9gl7ZhdXfIvSJljYIDFMLnjUPtq04PpYvTyvaGNYfnOBVHKvQVhrkAqhQiJS5s1RQ/exec";
+import MenuItem from "./components/MenuItem";
+import MenuItemWithTwoOptions from "./components/MenuItemWithTwoOptions";
+import CartRow from "./components/CartRow";
+import ReceiptRow from "./components/ReceiptRow";
 
-// 菜單集中設定區：未來修改價格或新增、刪除品項，只要修改這個 MENU 陣列即可
-const MENU = [
-  {
-    type: "two-options",
-    title: "招牌素滷肉刈包",
-    image: "./images/bao.png?v=4",
-    options: [
-      { id: "baoWith", flexName: "素滷肉刈包(加香菜)", uiName: "素滷肉刈包 (加香菜)", shortName: "加香菜", price: 60, isBao: true },
-      { id: "baoWithout", flexName: "素滷肉刈包(不香菜)", uiName: "素滷肉刈包 (不香菜)", shortName: "不香菜", price: 60, isBao: true }
-    ]
-  },
-  {
-    type: "single",
-    id: "platter",
-    title: "特製素滷味拼盤",
-    flexName: "特製素滷味拼盤",
-    uiName: "特製素滷味拼盤",
-    description: "大份量聚餐首選",
-    image: "./images/platter.png?v=4",
-    price: 600,
-    isPlatter: true
-  },
-  {
-    type: "single",
-    id: "soup",
-    title: "素藥膳補湯(一碗)",
-    flexName: "素藥膳補湯(一碗)",
-    uiName: "素藥膳補湯(一碗)",
-    description: "暖胃養生推薦",
-    image: "./images/soup.png?v=4",
-    price: 60
-  },
-  {
-    type: "single",
-    id: "soyMilk",
-    title: "非基改豆漿(500cc)",
-    flexName: "非基改豆漿(500cc)",
-    uiName: "非基改豆漿(500cc)",
-    description: "香醇濃郁",
-    image: "./images/soymilk.png?v=4",
-    price: 30
-  }
-];
-
-// 用來方便查找資料的字典
-const MENU_ITEMS = {};
-const INITIAL_CART = {};
-
-MENU.forEach(item => {
-  if (item.type === "two-options") {
-    item.options.forEach(opt => {
-      MENU_ITEMS[opt.id] = opt;
-      INITIAL_CART[opt.id] = 0;
-    });
-  } else {
-    MENU_ITEMS[item.id] = item;
-    INITIAL_CART[item.id] = 0;
-  }
-});
-
-const TAIWAN_ZONES = {
-  "台北市": ["中正區", "大同區", "中山區", "松山區", "大安區", "萬華區", "信義區", "士林區", "北投區", "內湖區", "南港區", "文山區"],
-  "新北市": ["板橋區", "三重區", "中和區", "永和區", "新莊區", "新店區", "土城區", "蘆洲區", "樹林區", "汐止區", "鶯歌區", "三峽區", "淡水區", "瑞芳區", "五股區", "泰山區", "林口區", "深坑區", "石碇區", "坪林區", "三芝區", "石門區", "八里區", "平溪區", "雙溪區", "貢寮區", "金山區", "萬里區", "烏來區"]
-};
-
-function App() {
+export default function App() {
   const [stage, setStage] = useState(1);
   const [orderType, setOrderType] = useState(null);
   const [showLocationModal, setShowLocationModal] = useState(true);
@@ -233,10 +172,10 @@ function App() {
     const now = new Date();
     const mm = pad(now.getMonth() + 1);
     const dd = pad(now.getDate());
-    
+
     // 依據訂餐地點設定前綴字首 (F: 福容, O: 其他)
     const prefix = orderType === "fulon" ? "F" : "O";
-    
+
     // 取得電話末三碼。如果沒有填寫，預設補上 000 防呆
     const phoneStr = form.phone || "000";
     const phoneLast3 = phoneStr.slice(-3).padStart(3, "0");
@@ -256,199 +195,6 @@ function App() {
 
     return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
   };
-
-  function safeStringify(value) {
-    try {
-      return JSON.stringify(value, null, 2);
-    } catch (e) {
-      return String(value);
-    }
-  }
-
-  const buildCustomerFlexMessage = (order) => {
-    const rows = [];
-
-    const addRow = (name, qty, price) => {
-      if (qty <= 0) return;
-
-      rows.push({
-        type: "box",
-        layout: "horizontal",
-        spacing: "sm",
-        contents: [
-          {
-            type: "text",
-            text: `${name} x ${qty}`,
-            size: "sm",
-            color: "#333333",
-            flex: 5,
-            wrap: true
-          },
-          {
-            type: "text",
-            text: `$${qty * price}`,
-            size: "sm",
-            color: "#333333",
-            align: "end",
-            flex: 2
-          }
-        ]
-      });
-    };
-
-    MENU.forEach(item => {
-      if (item.type === "two-options") {
-        item.options.forEach(opt => {
-          if (order.items[opt.id] > 0) {
-            addRow(opt.flexName, order.items[opt.id], opt.price);
-          }
-        });
-      } else {
-        if (order.items[item.id] > 0) {
-          addRow(item.flexName, order.items[item.id], item.price);
-        }
-      }
-    });
-
-    return {
-      type: "flex",
-      altText: "大嫂素食刈包訂單明細",
-      contents: {
-        type: "bubble",
-        size: "mega",
-        body: {
-          type: "box",
-          layout: "vertical",
-          spacing: "md",
-          contents: [
-            {
-              type: "text",
-              text: "大嫂素食刈包 訂單明細",
-              weight: "bold",
-              size: "xl",
-              color: "#EA580C"
-            },
-            {
-              type: "text",
-              text: `訂單編號：${order.orderId}`,
-              size: "sm",
-              color: "#666666",
-              wrap: true
-            },
-            {
-              type: "separator",
-              margin: "md"
-            },
-            ...rows,
-            {
-              type: "separator",
-              margin: "md"
-            },
-            {
-              type: "box",
-              layout: "horizontal",
-              contents: [
-                {
-                  type: "text",
-                  text: "總金額",
-                  weight: "bold",
-                  size: "lg"
-                },
-                {
-                  type: "text",
-                  text: `$${Number(order.totalAmount).toLocaleString()}`,
-                  weight: "bold",
-                  size: "lg",
-                  align: "end",
-                  color: "#C82333"
-                }
-              ]
-            },
-            {
-              type: "separator",
-              margin: "md"
-            },
-            {
-              type: "text",
-              text: `訂單類別：${order.orderType}`,
-              size: "sm",
-              wrap: true,
-              weight: "bold",
-              color: "#111111"
-            },
-            {
-              type: "text",
-              text: `訂購人：${order.form.name}`,
-              size: "sm",
-              wrap: true
-            },
-            {
-              type: "text",
-              text: `電話：${order.form.phone}`,
-              size: "sm",
-              wrap: true
-            },
-            {
-              type: "text",
-              text: `地址：${order.form.address}`,
-              size: "sm",
-              wrap: true
-            },
-            {
-              type: "text",
-              text: `預定日期：${order.form.date}`,
-              size: "sm",
-              wrap: true
-            },
-            {
-              type: "text",
-              text: `預定時間：${order.form.time}`,
-              size: "sm",
-              wrap: true
-            },
-            {
-              type: "text",
-              text: `備註：${order.form.note || "無"}`,
-              size: "sm",
-              wrap: true,
-              color: "#CC0000"
-            }
-          ]
-        }
-      }
-    };
-  };
-
-  async function sendOrderMessageToLineChat(order) {
-    if (!liffReady) {
-      throw new Error("LIFF 尚未初始化完成");
-    }
-
-    if (!liff.isInClient()) {
-      throw new Error("目前不是在 LINE App 的 LIFF 視窗內開啟，無法送回聊天室");
-    }
-
-    const flexMessage = buildCustomerFlexMessage(order);
-
-    console.log("即將送出的 Flex Message:", safeStringify(flexMessage));
-
-    await liff.sendMessages([flexMessage]);
-  }
-
-  async function saveOrderToGoogleSheet(order) {
-    if (!GAS_WEB_APP_URL || GAS_WEB_APP_URL.includes("貼上你的")) {
-      throw new Error("尚未設定 GAS_WEB_APP_URL，請貼上 Apps Script /exec 網址");
-    }
-
-    await fetch(GAS_WEB_APP_URL, {
-      method: "POST",
-      mode: "no-cors",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8"
-      },
-      body: JSON.stringify(order)
-    });
-  }
 
   const submitOrder = async () => {
     let completeAddress = "";
@@ -504,7 +250,7 @@ function App() {
 
     try {
       try {
-        await sendOrderMessageToLineChat(finalOrder);
+        await sendOrderMessageToLineChat(finalOrder, liffReady);
         finalOrder.lineStatus = "顧客端已回傳 Flex Message";
         finalOrder.lineError = "";
       } catch (lineErr) {
@@ -595,9 +341,9 @@ function App() {
                   return;
                 }
                 setOrderType(tempOrderType);
-                setForm(prev => ({ 
-                  ...prev, 
-                  deliveryMethod: tempOrderType === "fulon" ? "fullon" : "pickup" 
+                setForm(prev => ({
+                  ...prev,
+                  deliveryMethod: tempOrderType === "fulon" ? "fullon" : "pickup"
                 }));
                 setShowLocationModal(false);
               }}
@@ -610,7 +356,7 @@ function App() {
               <p className="text-sm text-blue-800 font-bold">💡 補湯訂購提醒：</p>
               <p className="text-xs text-blue-700 mt-1">若有訂購補湯，補湯數量需達 10 碗以上，訂單才可成立。</p>
             </div>
-            
+
             <p className="text-sm font-bold text-gray-800 mt-6 pt-4 border-t text-center">
               大量/團體活動訂餐請私訊或來電<br />
               <a href="tel:0938093816" className="text-orange-600 text-lg">0938093816</a>
@@ -1016,266 +762,3 @@ function App() {
     </div>
   );
 }
-
-function MenuItemWithTwoOptions(props) {
-  return (
-    <div className="bg-white rounded-xl shadow-sm border p-3 flex gap-4">
-      <SafeImage src={props.image} alt={props.title} className="w-24 h-24 rounded-lg food-img flex-shrink-0" />
-
-      <div className="flex-1 flex flex-col justify-center">
-        <h2 className="text-lg font-bold text-gray-800 mb-2">{props.title}</h2>
-
-        <div className="flex justify-between items-center mb-2">
-          <div className="text-sm text-gray-600">
-            {props.optionA} <span className="text-orange-600 font-bold">${props.priceA}</span>
-          </div>
-
-          <QtyControl qty={props.qtyA} onMinus={props.onMinusA} onPlus={props.onPlusA} />
-        </div>
-
-        <div className="flex justify-between items-center border-t border-gray-100 pt-2">
-          <div className="text-sm text-gray-600">
-            {props.optionB} <span className="text-orange-600 font-bold">${props.priceB}</span>
-          </div>
-
-          <QtyControl qty={props.qtyB} onMinus={props.onMinusB} onPlus={props.onPlusB} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MenuItem(props) {
-  return (
-    <div className="bg-white rounded-xl shadow-sm border p-3 flex gap-4">
-      <SafeImage src={props.image} alt={props.title} className="w-24 h-24 rounded-lg food-img flex-shrink-0" />
-
-      <div className="flex-1 flex flex-col justify-center">
-        <h2 className="text-lg font-bold text-gray-800">{props.title}</h2>
-        <p className="text-xs text-gray-400 mb-2">{props.description}</p>
-
-        <div className="flex justify-between items-center mt-auto">
-          <span className="text-orange-600 font-bold">${props.price}</span>
-          <QtyControl qty={props.qty} onMinus={props.onMinus} onPlus={props.onPlus} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function QtyControl({ qty, onMinus, onPlus }) {
-  return (
-    <div className="flex items-center gap-3">
-      <button
-        onClick={onMinus}
-        className="w-8 h-8 rounded-full bg-gray-100 font-bold text-lg flex items-center justify-center text-gray-600"
-      >
-        -
-      </button>
-
-      <span className="font-bold text-md w-4 text-center">{qty}</span>
-
-      <button
-        onClick={onPlus}
-        className="w-8 h-8 rounded-full bg-orange-500 text-white font-bold text-lg flex items-center justify-center"
-      >
-        +
-      </button>
-    </div>
-  );
-}
-
-function CartRow({ name, qty, amount }) {
-  return (
-    <div className="flex justify-between py-1 border-b border-dashed border-gray-200">
-      <span>{name} x {qty}</span>
-      <span className="font-medium">${amount}</span>
-    </div>
-  );
-}
-
-function ReceiptRow({ name, qty, price }) {
-  return (
-    <tr>
-      <td style={{ padding: "6px 0" }}>{name}</td>
-      <td align="center">{qty}</td>
-      <td style={{ textAlign: "right" }}>${qty * price}</td>
-    </tr>
-  );
-}
-
-function SafeImage({ src, alt, className }) {
-  const [show, setShow] = useState(false);
-  const [animate, setAnimate] = useState(false);
-  const overlayRef = useRef(null);
-  const imgRef = useRef(null);
-
-  // 雙指縮放與拖曳狀態
-  const [scale, setScale] = useState(1);
-  const [pos, setPos] = useState({ x: 0, y: 0 });
-  const lastDist = useRef(null);
-  const lastPos = useRef(null);
-
-  // 防白屏核心：徹底封鎖系統級的原生滾動與縮放
-  useEffect(() => {
-    const node = overlayRef.current;
-    if (!node || !show) return;
-    
-    document.body.style.overflow = 'hidden'; // 禁止網頁底層滾動
-    
-    const preventNativeScroll = (e) => {
-      e.preventDefault(); // 封殺系統預設的滑動與雙指縮放行為（防 Safari 白屏）
-    };
-    
-    node.addEventListener('touchmove', preventNativeScroll, { passive: false });
-    return () => {
-      document.body.style.overflow = '';
-      node.removeEventListener('touchmove', preventNativeScroll);
-    };
-  }, [show]);
-
-  const handleOpen = () => {
-    setShow(true);
-    // 復原初始狀態
-    setScale(1);
-    setPos({ x: 0, y: 0 });
-    lastDist.current = null;
-    lastPos.current = null;
-    setTimeout(() => setAnimate(true), 10);
-  };
-
-  const closePreview = () => {
-    setAnimate(false);
-    setTimeout(() => {
-      setShow(false);
-      setScale(1);
-      setPos({ x: 0, y: 0 });
-    }, 300);
-  };
-
-  const handleTouchStart = (e) => {
-    if (e.touches.length === 2) {
-      lastDist.current = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-    } else if (e.touches.length === 1) {
-      lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    }
-  };
-
-  const handleTouchMove = (e) => {
-    if (e.touches.length === 2) {
-      // 雙指縮放
-      const dist = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      if (lastDist.current && lastDist.current > 0) {
-        const delta = dist / lastDist.current;
-        setScale(s => {
-          let next = s * delta;
-          if (isNaN(next)) return s;
-          return Math.min(Math.max(1, next), 3.5); // 最大3.5倍
-        });
-      }
-      lastDist.current = dist;
-    } else if (e.touches.length === 1) {
-      // 支援單指拖曳找細節
-      if (!lastPos.current) {
-        lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        return;
-      }
-      
-      const curX = e.touches[0].clientX;
-      const curY = e.touches[0].clientY;
-      const dx = curX - lastPos.current.x;
-      const dy = curY - lastPos.current.y;
-      
-      if (!isNaN(dx) && !isNaN(dy)) {
-        setPos(p => {
-          let nextX = p.x + dx;
-          let nextY = p.y + dy;
-          
-          // 動態限制拖曳範圍：精準計算照片邊界，不讓黑底額外露出來
-          if (imgRef.current) {
-            const w = imgRef.current.offsetWidth;
-            const h = imgRef.current.offsetHeight;
-            const maxX = Math.max(0, (w * scale - w) / 2);
-            const maxY = Math.max(0, (h * scale - h) / 2);
-            nextX = Math.max(-maxX, Math.min(maxX, nextX));
-            nextY = Math.max(-maxY, Math.min(maxY, nextY));
-          }
-          
-          return { x: nextX, y: nextY };
-        });
-      }
-      lastPos.current = { x: curX, y: curY };
-    }
-  };
-
-  const handleTouchEnd = (e) => {
-    if (e.touches.length === 0) {
-      lastDist.current = null;
-      lastPos.current = null;
-      // 判斷如果縮放小於等於原尺寸1倍，自動吸附回畫面正中間
-      if (scale <= 1) {
-        setPos({ x: 0, y: 0 });
-      }
-    } else if (e.touches.length === 1) {
-      // 兩指變一指時，讓那一指重新歸零，防瞬間暴衝
-      lastDist.current = null;
-      lastPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    }
-  };
-
-  return (
-    <>
-      <img
-        src={src}
-        alt={alt}
-        className={`${className} select-none cursor-pointer`}
-        style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', WebkitUserDrag: 'none' }}
-        draggable="false"
-        onContextMenu={(e) => e.preventDefault()}
-        onClick={handleOpen}
-      />
-      {show && (
-        <div
-          ref={overlayRef}
-          className={`fixed top-0 bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[100] flex items-center justify-center bg-black/95 transition-opacity duration-300 touch-none overflow-hidden ${animate ? 'opacity-100' : 'opacity-0'}`}
-        >
-          <div className={`w-full h-full flex flex-col items-center justify-center transition-transform duration-300 ease-out ${animate ? 'scale-100' : 'scale-[0.98]'}`}>
-            <img
-              ref={imgRef}
-              src={src}
-              alt={alt}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              onTouchCancel={handleTouchEnd}
-              className="max-w-full max-h-[80vh] object-contain select-none"
-              style={{
-                WebkitTouchCallout: 'none',
-                WebkitUserSelect: 'none',
-                WebkitUserDrag: 'none',
-                willChange: 'transform',
-                transform: `translate3d(${pos.x}px, ${pos.y}px, 0) scale(${scale})`
-              }}
-              draggable="false"
-              onContextMenu={(e) => e.preventDefault()}
-            />
-          </div>
-          <div
-            onClick={closePreview}
-            className="absolute top-6 right-6 text-gray-800 bg-white/90 active:bg-white rounded-full w-10 h-10 flex items-center justify-center font-bold text-xl shadow-[0_0_15px_rgba(0,0,0,0.5)] cursor-pointer z-[110]"
-          >
-            ✕
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
