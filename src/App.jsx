@@ -196,10 +196,18 @@ export default function App() {
     return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
   };
 
+  // 預定日期限制：只能選擇三天後（含）之後的日期
+  const getMinOrderDate = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  const minOrderDate = getMinOrderDate();
+
   const submitOrder = async () => {
     let completeAddress = "";
     if (form.deliveryMethod === "pickup") {
-      completeAddress = "自取 (將於訂單確認後附上取貨地址)";
+      completeAddress = "自取（板橋區） (將於訂單確認後附上取貨地址)";
     } else if (form.deliveryMethod === "fullon") {
       completeAddress = "淡水福容飯店 (大嫂親送)";
     } else {
@@ -217,6 +225,11 @@ export default function App() {
 
     if (!/^\d{10}$/.test(form.phone)) {
       showToastMessage("請輸入有效的電話號碼！");
+      return;
+    }
+
+    if (form.date < minOrderDate) {
+      showToastMessage("預定日期請選擇三天後（含）之後的日期喔！");
       return;
     }
 
@@ -520,7 +533,7 @@ export default function App() {
                     onClick={() => setForm({ ...form, deliveryMethod: "pickup" })}
                     className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-colors ${form.deliveryMethod === "pickup" ? "bg-orange-600 text-white border-orange-600 shadow-md" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"}`}
                   >
-                    自取
+                    自取（板橋區）
                   </button>
                   <button
                     type="button"
@@ -607,12 +620,13 @@ export default function App() {
                 </>
               )}
 
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <div className="flex-1 min-w-0">
                   <label className="block text-xs font-medium text-gray-500 mb-1 pl-1">預定日期 *</label>
                   <input
                     type="date"
                     value={form.date}
+                    min={minOrderDate}
                     onChange={e => setForm({ ...form, date: e.target.value })}
                     className="w-full border rounded-xl px-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                   />
