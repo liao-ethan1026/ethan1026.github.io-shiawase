@@ -34,15 +34,8 @@ input[type="time"]::-webkit-date-and-time-value {
   min-width: 0;
 }
 
-/* 窄螢幕才拔掉原生外觀：原生規格的最小寬度約 170-200px，兩欄並排時放不下。
-   桌機維持原生外觀，才留得住日曆/時鐘圖示 */
-@media (max-width: 480px) {
-  input[type="date"],
-  input[type="time"] {
-    -webkit-appearance: none;
-    appearance: none;
-  }
-}
+/* 不可改用 appearance:none 壓寬度，會讓 iOS 的日期/時間選擇器叫不出來。
+   寬度由外層 div 的 overflow-hidden 負責裁切即可 */
 
 #receipt-container {
   position: fixed;
