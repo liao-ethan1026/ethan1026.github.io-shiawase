@@ -638,8 +638,8 @@ export default function App() {
                 </>
               )}
 
-              <div className="flex flex-row gap-2">
-                <div className="flex-1 min-w-0">
+              <div className="flex flex-row">
+                <div className="flex-1 min-w-0 mr-2">
                   <label className="block text-xs font-medium text-gray-500 mb-1 pl-1">預定日期 *</label>
                   <input
                     type="date"
