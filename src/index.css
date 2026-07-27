@@ -18,6 +18,18 @@ body {
   min-height: 100vh;
 }
 
+/* iOS Safari 把日期/時間 input 預設為 inline-flex，會無視 width:100% 改用內部 UI 的
+   最小寬度渲染，導致並排時撐破容器。強制 block + textfield 外觀才會遵守設定寬度 */
+input[type="date"],
+input[type="time"] {
+  display: block;
+  -webkit-appearance: textfield;
+  appearance: textfield;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 #receipt-container {
   position: fixed;
   top: -9999px;
