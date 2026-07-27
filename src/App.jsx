@@ -638,25 +638,31 @@ export default function App() {
                 </>
               )}
 
-              <div className="flex flex-row">
-                <div className="flex-1 min-w-0 mr-4">
+              {/* 外框改由 div 負責並裁切內容：原生日期/時間 input 有約 170-200px 的最小寬度，
+                  並排時會撐破格子，包一層可見外框才能保證兩欄不重疊 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="min-w-0">
                   <label className="block text-xs font-medium text-gray-500 mb-1 pl-1">預定日期 *</label>
-                  <input
-                    type="date"
-                    value={form.date}
-                    min={minOrderDate}
-                    onChange={e => setForm({ ...form, date: e.target.value })}
-                    className="w-full min-w-0 border rounded-xl px-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white overflow-hidden"
-                  />
+                  <div className="border rounded-xl bg-white px-2 py-3 overflow-hidden focus-within:ring-2 focus-within:ring-orange-500">
+                    <input
+                      type="date"
+                      value={form.date}
+                      min={minOrderDate}
+                      onChange={e => setForm({ ...form, date: e.target.value })}
+                      className="block w-full min-w-0 p-0 text-sm bg-transparent border-0 focus:outline-none"
+                    />
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0">
                   <label className="block text-xs font-medium text-gray-500 mb-1 pl-1">預定時間 *</label>
-                  <input
-                    type="time"
-                    value={form.time}
-                    onChange={e => setForm({ ...form, time: e.target.value })}
-                    className="w-full min-w-0 border rounded-xl px-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white overflow-hidden"
-                  />
+                  <div className="border rounded-xl bg-white px-2 py-3 overflow-hidden focus-within:ring-2 focus-within:ring-orange-500">
+                    <input
+                      type="time"
+                      value={form.time}
+                      onChange={e => setForm({ ...form, time: e.target.value })}
+                      className="block w-full min-w-0 p-0 text-sm bg-transparent border-0 focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 

@@ -18,16 +18,30 @@ body {
   min-height: 100vh;
 }
 
-/* iOS Safari 把日期/時間 input 預設為 inline-flex，會無視 width:100% 改用內部 UI 的
-   最小寬度渲染，導致並排時撐破容器。強制 block + textfield 外觀才會遵守設定寬度 */
 input[type="date"],
 input[type="time"] {
   display: block;
-  -webkit-appearance: textfield;
-  appearance: textfield;
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
+}
+
+/* iOS 會給值的容器額外邊距，撐出比容器更寬的內容 */
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+  min-width: 0;
+}
+
+/* 窄螢幕才拔掉原生外觀：原生規格的最小寬度約 170-200px，兩欄並排時放不下。
+   桌機維持原生外觀，才留得住日曆/時鐘圖示 */
+@media (max-width: 480px) {
+  input[type="date"],
+  input[type="time"] {
+    -webkit-appearance: none;
+    appearance: none;
+  }
 }
 
 #receipt-container {
