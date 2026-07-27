@@ -646,7 +646,7 @@ export default function App() {
                     value={form.date}
                     min={minOrderDate}
                     onChange={e => setForm({ ...form, date: e.target.value })}
-                    className="w-full border rounded-xl px-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                    className="w-full min-w-0 border rounded-xl px-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                   />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -655,7 +655,7 @@ export default function App() {
                     type="time"
                     value={form.time}
                     onChange={e => setForm({ ...form, time: e.target.value })}
-                    className="w-full border rounded-xl px-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                    className="w-full min-w-0 border rounded-xl px-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                   />
                 </div>
               </div>
