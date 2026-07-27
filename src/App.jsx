@@ -157,6 +157,9 @@ export default function App() {
   const isSoupValid = soupQty === 0 || soupQty >= 10;
   const soupMsg = "補湯需 10 碗以上才可訂購。";
 
+  const isBaoValid = totalBao === 0 || totalBao >= 10;
+  const baoMsg = "刈包如需訂購，最少需 10 顆才能製作，請調整數量或不訂購刈包。";
+
   const updateQty = (key, delta) => {
     setCart(prev => ({
       ...prev,
@@ -245,6 +248,11 @@ export default function App() {
 
     if (!isSoupValid) {
       showToastMessage("⚠️ " + soupMsg);
+      return;
+    }
+
+    if (!isBaoValid) {
+      showToastMessage("⚠️ " + baoMsg);
       return;
     }
 
@@ -379,7 +387,7 @@ export default function App() {
       )}
 
       {stage === 1 && (
-        <div className="pb-24">
+        <div className="pb-32">
           <header className="bg-orange-600 text-white p-4 sticky top-0 z-10 text-center shadow-md">
             <h1 className="text-xl font-bold">大嫂素食刈包線上點餐</h1>
             {orderType && (
@@ -440,7 +448,7 @@ export default function App() {
             })}
           </div>
 
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 max-w-md mx-auto z-20 flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t pt-4 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] max-w-md mx-auto z-20 flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
             <div>
               <div className="text-xs text-gray-400">已選品項數量：{totalItems}</div>
               <div className="text-2xl font-bold text-orange-600">${totalAmount}</div>
@@ -463,7 +471,7 @@ export default function App() {
       )}
 
       {stage === 2 && (
-        <div className="pb-32 min-h-screen" onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
+        <div className="pb-40 min-h-screen" onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
           <header className="bg-orange-600 text-white p-4 sticky top-0 z-10 flex items-center shadow-md">
             <button onClick={() => setStage(1)} className="text-white p-2 font-bold text-lg">← 返回</button>
             <h1 className="text-xl font-bold ml-4">確認餐點明細</h1>
@@ -512,6 +520,16 @@ export default function App() {
                   <br />
                   <span className="text-xs font-normal text-gray-500">
                     目前補湯：{soupQty} 碗
+                  </span>
+                </div>
+              )}
+
+              {!isBaoValid && (
+                <div className="mt-4 bg-red-50 border border-red-400 p-3 rounded-xl text-red-600 font-bold text-center text-sm shadow-inner animate-pulse">
+                  ⚠️ {baoMsg}
+                  <br />
+                  <span className="text-xs font-normal text-gray-500">
+                    目前刈包：{totalBao} 顆
                   </span>
                 </div>
               )}
@@ -620,7 +638,7 @@ export default function App() {
                 </>
               )}
 
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-row gap-2">
                 <div className="flex-1 min-w-0">
                   <label className="block text-xs font-medium text-gray-500 mb-1 pl-1">預定日期 *</label>
                   <input
@@ -654,7 +672,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="fixed bottom-0 left-0 right-0 bg-white p-4 max-w-md mx-auto border-t z-20 shadow-xl">
+          <div className="fixed bottom-0 left-0 right-0 bg-white pt-4 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] max-w-md mx-auto border-t z-20 shadow-xl">
             <button
               onClick={submitOrder}
               disabled={isSubmitting}
