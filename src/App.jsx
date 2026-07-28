@@ -3,7 +3,7 @@ import liff from "@line/liff";
 import html2canvas from "html2canvas";
 
 import { MENU, MENU_ITEMS, INITIAL_CART, TAIWAN_ZONES } from "./menu";
-import { MY_LIFF_ID } from "./config";
+import { MY_LIFF_ID, GAS_WEB_APP_URL } from "./config";
 import { sendOrderMessageToLineChat, saveOrderToGoogleSheet } from "./api";
 
 import MenuItem from "./components/MenuItem";
@@ -19,6 +19,9 @@ export default function App() {
 
   const [cart, setCart] = useState(INITIAL_CART);
   const [showCartPreview, setShowCartPreview] = useState(false);
+
+  // 後台菜單設定（上架狀態、價格）；null 代表還沒讀到或讀取失敗，這時全部退回本地預設值
+  const [remoteMenu, setRemoteMenu] = useState(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -112,6 +115,51 @@ export default function App() {
     initLiff();
   }, []);
 
+  useEffect(() => {
+    async function loadMenuConfig() {
+      try {
+        // 加時間戳記＋no-store 避免讀到快取的舊上架狀態或舊價格
+        const res = await fetch(`${GAS_WEB_APP_URL}?action=getMenu&t=${Date.now()}`, {
+          cache: "no-store"
+        });
+        const data = await res.json();
+
+        if (data && data.success && Array.isArray(data.items)) {
+          const map = {};
+          data.items.forEach(it => {
+            if (it && it.id) {
+              map[it.id] = {
+                price: Number(it.price),
+                enabled: it.enabled !== false
+              };
+            }
+          });
+          setRemoteMenu(map);
+        }
+      } catch (err) {
+        // 後台還沒設定好、或讀取失敗時，維持 remoteMenu 為 null，全部退回本地預設值，不影響點餐
+        console.warn("讀取後台菜單設定失敗，改用本地預設值", err);
+      }
+    }
+
+    loadMenuConfig();
+  }, []);
+
+  // 取得品項目前實際售價：後台有設定就用後台的，沒有（或讀取失敗）就用 menu.js 的預設值
+  const getPrice = (id) => {
+    const remote = remoteMenu && remoteMenu[id];
+    if (remote && typeof remote.price === "number" && !Number.isNaN(remote.price)) {
+      return remote.price;
+    }
+    return MENU_ITEMS[id] ? MENU_ITEMS[id].price : 0;
+  };
+
+  // 取得品項目前是否上架：後台沒有這筆資料時預設為上架，避免後台還沒建好資料時整個菜單消失
+  const isItemEnabled = (id) => {
+    const remote = remoteMenu && remoteMenu[id];
+    return remote ? remote.enabled : true;
+  };
+
   const showToastMessage = (msg, isWarn = true) => {
     setToast({
       show: true,
@@ -138,7 +186,7 @@ export default function App() {
     const itemInfo = MENU_ITEMS[key];
     if (qty > 0) {
       totalItems += qty;
-      totalAmount += qty * itemInfo.price;
+      totalAmount += qty * getPrice(key);
       if (itemInfo.isBao) totalBao += qty;
       if (itemInfo.isPlatter) totalPlatter += qty;
     }
@@ -273,6 +321,8 @@ export default function App() {
       timestamp: formatTimestamp(),
       orderType: orderType === "fulon" ? "淡水福容飯店" : "其他",
       items: { ...cart },
+      // 記錄下單當下實際套用的價格，避免完成頁收據被之後的後台改價影響
+      prices: Object.fromEntries(Object.keys(cart).map(key => [key, getPrice(key)])),
       form: { ...form, address: completeAddress },
       totalAmount: totalAmount,
       lineStatus: "",
@@ -424,6 +474,13 @@ export default function App() {
           <div className="p-4 space-y-4">
             {MENU.map((item, idx) => {
               if (item.type === "two-options") {
+                const idA = item.options[0].id;
+                const idB = item.options[1].id;
+                const enabledA = isItemEnabled(idA);
+                const enabledB = isItemEnabled(idB);
+
+                if (!enabledA && !enabledB) return null;
+
                 return (
                   <MenuItemWithTwoOptions
                     key={idx}
@@ -431,24 +488,28 @@ export default function App() {
                     title={item.title}
                     optionA={item.options[0].shortName}
                     optionB={item.options[1].shortName}
-                    priceA={item.options[0].price}
-                    priceB={item.options[1].price}
-                    qtyA={cart[item.options[0].id]}
-                    qtyB={cart[item.options[1].id]}
-                    onMinusA={() => updateQty(item.options[0].id, -1)}
-                    onPlusA={() => updateQty(item.options[0].id, 1)}
-                    onMinusB={() => updateQty(item.options[1].id, -1)}
-                    onPlusB={() => updateQty(item.options[1].id, 1)}
+                    priceA={getPrice(idA)}
+                    priceB={getPrice(idB)}
+                    enabledA={enabledA}
+                    enabledB={enabledB}
+                    qtyA={cart[idA]}
+                    qtyB={cart[idB]}
+                    onMinusA={() => updateQty(idA, -1)}
+                    onPlusA={() => updateQty(idA, 1)}
+                    onMinusB={() => updateQty(idB, -1)}
+                    onPlusB={() => updateQty(idB, 1)}
                   />
                 );
               } else {
+                if (!isItemEnabled(item.id)) return null;
+
                 return (
                   <MenuItem
                     key={item.id}
                     image={item.image}
                     title={item.title}
                     description={item.description}
-                    price={item.price}
+                    price={getPrice(item.id)}
                     qty={cart[item.id]}
                     onMinus={() => updateQty(item.id, -1)}
                     onPlus={() => updateQty(item.id, 1)}
@@ -468,13 +529,13 @@ export default function App() {
                     if (item.type === "two-options") {
                       return item.options.map(opt => {
                         if (cart[opt.id] > 0) {
-                          return <CartRow key={opt.id} name={opt.uiName} qty={cart[opt.id]} amount={cart[opt.id] * opt.price} />
+                          return <CartRow key={opt.id} name={opt.uiName} qty={cart[opt.id]} amount={cart[opt.id] * getPrice(opt.id)} />
                         }
                         return null;
                       });
                     } else {
                       if (cart[item.id] > 0) {
-                        return <CartRow key={item.id} name={item.uiName} qty={cart[item.id]} amount={cart[item.id] * item.price} />
+                        return <CartRow key={item.id} name={item.uiName} qty={cart[item.id]} amount={cart[item.id] * getPrice(item.id)} />
                       }
                     }
                     return null;
@@ -829,13 +890,15 @@ export default function App() {
                 if (item.type === "two-options") {
                   return item.options.map(opt => {
                     if (orderResult?.items[opt.id] > 0) {
-                      return <ReceiptRow key={opt.id} name={opt.uiName} qty={orderResult.items[opt.id]} price={opt.price} />
+                      const price = orderResult?.prices?.[opt.id] ?? opt.price;
+                      return <ReceiptRow key={opt.id} name={opt.uiName} qty={orderResult.items[opt.id]} price={price} />
                     }
                     return null;
                   });
                 } else {
                   if (orderResult?.items[item.id] > 0) {
-                    return <ReceiptRow key={item.id} name={item.uiName} qty={orderResult.items[item.id]} price={item.price} />
+                    const price = orderResult?.prices?.[item.id] ?? item.price;
+                    return <ReceiptRow key={item.id} name={item.uiName} qty={orderResult.items[item.id]} price={price} />
                   }
                 }
                 return null;
