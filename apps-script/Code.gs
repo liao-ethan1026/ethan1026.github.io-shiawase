@@ -6,25 +6,44 @@
  * 只負責：
  * 1. 接收 GitHub Pages 傳來的訂單資料
  * 2. 後端再次驗證
- * 3. 後端重新計算金額
+ * 3. 後端重新計算金額（價格讀自「菜單設定」分頁，管理後台改價會立即反映在這裡）
  * 4. 寫入 Google Sheets
+ * 5. 提供菜單設定的讀取（doGet ?action=getMenu）與寫入（doPost action=updateMenu，給後台管理頁用）
  *
  * ⚠️ 此檔案僅為版本備份紀錄，實際執行的是 Google Apps Script 上的版本。
  *    修改後請到 Apps Script 貼上並「管理部署作業 → 編輯 → 新版本」重新部署（網址不變）。
+ *
+ * ⚠️ ADMIN_PASSCODE 故意留空。這個檔案會被上傳到公開的 GitHub repo，
+ *    真正的管理密碼只能填在 Apps Script 網站上實際執行的那份程式碼裡，
+ *    絕對不要把真正的密碼填回這個檔案再 commit。
  */
 
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1Rde3eDe6evLc4DvxNNzOWNjDKVdRuR_6oND7xgs_k0Y/edit';
 const SHEET_NAME = '訂單';
+const MENU_SHEET_NAME = '菜單設定';
 
-const PRICES = {
-  baoWith: 60,
-  baoWithout: 60,
-  soup: 60,
-  soyMilk: 30,
-  platter: 600
-};
+// 後台管理頁面用的通關密碼，只能填在 Apps Script 編輯畫面裡，不要填在這個備份檔裡
+const ADMIN_PASSCODE = '';
+
+// 「菜單設定」分頁還沒建立時，用這組預設值自動建立（跟目前 menu.js 的品項一致）
+const DEFAULT_MENU = [
+  { id: 'baoWith', name: '素滷肉刈包(加香菜)', price: 60, enabled: true },
+  { id: 'baoWithout', name: '素滷肉刈包(不香菜)', price: 60, enabled: true },
+  { id: 'platter', name: '特製素滷味拼盤', price: 600, enabled: true },
+  { id: 'soup', name: '素藥膳補湯(一碗)', price: 60, enabled: true },
+  { id: 'soyMilk', name: '非基改豆漿(500cc)', price: 30, enabled: true }
+];
 
 function doGet(e) {
+  const action = e && e.parameter && e.parameter.action;
+
+  if (action === 'getMenu') {
+    return jsonOutput({
+      success: true,
+      items: getMenuConfig()
+    });
+  }
+
   return ContentService
     .createTextOutput('幸福蔬食訂單 API 運作中')
     .setMimeType(ContentService.MimeType.TEXT);
@@ -39,55 +58,18 @@ function doPost(e) {
     if (!e || !e.postData || !e.postData.contents) {
       return jsonOutput({
         success: false,
-        message: '沒有收到訂單資料'
+        message: '沒有收到資料'
       });
     }
 
-    const orderData = JSON.parse(e.postData.contents);
+    const requestData = JSON.parse(e.postData.contents);
+    const action = requestData.action || 'submitOrder';
 
-    const items = normalizeItems(orderData.items || {});
-    const form = normalizeForm(orderData.form || {});
-
-    // 帶入訂餐地點（淡水福容飯店 / 其他），套用對應門檻
-    const validation = validateOrder(items, form, orderData.orderType);
-
-    if (!validation.success) {
-      return jsonOutput(validation);
+    if (action === 'updateMenu') {
+      return handleUpdateMenu(requestData);
     }
 
-    const totalAmount = calculateTotalAmount(items);
-    const details = buildOrderDetails(items);
-
-    const now = new Date();
-    const timestamp = orderData.timestamp || Utilities.formatDate(now, 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
-    const orderId = orderData.orderId || createFallbackOrderId(now);
-
-    const lineStatus = orderData.lineStatus || '未提供';
-    const lineError = orderData.lineError || '';
-
-    const result = writeToSheet({
-      timestamp,
-      orderId,
-      form,
-      items,
-      details,
-      totalAmount,
-      lineStatus,
-      lineError
-    });
-
-    if (!result.success) {
-      return jsonOutput({
-        success: false,
-        message: result.error
-      });
-    }
-
-    return jsonOutput({
-      success: true,
-      orderId,
-      totalAmount
-    });
+    return handleSubmitOrder(requestData);
 
   } catch (error) {
     return jsonOutput({
@@ -99,6 +81,81 @@ function doPost(e) {
     try {
       lock.releaseLock();
     } catch (e) {}
+  }
+}
+
+function handleSubmitOrder(orderData) {
+  const items = normalizeItems(orderData.items || {});
+  const form = normalizeForm(orderData.form || {});
+
+  // 帶入訂餐地點（淡水福容飯店 / 其他），套用對應門檻
+  const validation = validateOrder(items, form, orderData.orderType);
+
+  if (!validation.success) {
+    return jsonOutput(validation);
+  }
+
+  const prices = getPricesMap();
+  const totalAmount = calculateTotalAmount(items, prices);
+  const details = buildOrderDetails(items);
+
+  const now = new Date();
+  const timestamp = orderData.timestamp || Utilities.formatDate(now, 'Asia/Taipei', 'yyyy-MM-dd HH:mm:ss');
+  const orderId = orderData.orderId || createFallbackOrderId(now);
+
+  const lineStatus = orderData.lineStatus || '未提供';
+  const lineError = orderData.lineError || '';
+
+  const result = writeToSheet({
+    timestamp,
+    orderId,
+    form,
+    items,
+    details,
+    totalAmount,
+    lineStatus,
+    lineError
+  });
+
+  if (!result.success) {
+    return jsonOutput({
+      success: false,
+      message: result.error
+    });
+  }
+
+  return jsonOutput({
+    success: true,
+    orderId,
+    totalAmount
+  });
+}
+
+function handleUpdateMenu(requestData) {
+  if (!ADMIN_PASSCODE) {
+    return jsonOutput({
+      success: false,
+      message: '後台尚未設定管理密碼，請先在 Apps Script 編輯畫面設定 ADMIN_PASSCODE'
+    });
+  }
+
+  if (requestData.passcode !== ADMIN_PASSCODE) {
+    return jsonOutput({
+      success: false,
+      message: '管理密碼錯誤'
+    });
+  }
+
+  const items = Array.isArray(requestData.items) ? requestData.items : [];
+
+  try {
+    writeMenuConfig(items);
+    return jsonOutput({ success: true });
+  } catch (error) {
+    return jsonOutput({
+      success: false,
+      message: error.toString()
+    });
   }
 }
 
@@ -179,13 +236,13 @@ function validateOrder(items, form, orderType) {
   return { success: true };
 }
 
-function calculateTotalAmount(items) {
+function calculateTotalAmount(items, prices) {
   return (
-    items.baoWith * PRICES.baoWith +
-    items.baoWithout * PRICES.baoWithout +
-    items.soup * PRICES.soup +
-    items.soyMilk * PRICES.soyMilk +
-    items.platter * PRICES.platter
+    items.baoWith * prices.baoWith +
+    items.baoWithout * prices.baoWithout +
+    items.soup * prices.soup +
+    items.soyMilk * prices.soyMilk +
+    items.platter * prices.platter
   );
 }
 
@@ -264,4 +321,82 @@ function writeToSheet(data) {
       error: error.toString()
     };
   }
+}
+
+// ---- 以下為「菜單設定」分頁相關：後台管理頁的上架狀態與價格都存在這裡 ----
+
+function getMenuSheet_() {
+  const ss = SpreadsheetApp.openByUrl(SHEET_URL);
+  let sheet = ss.getSheetByName(MENU_SHEET_NAME);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(MENU_SHEET_NAME);
+    sheet.appendRow(['品項ID', '顯示名稱', '價格', '上架']);
+
+    DEFAULT_MENU.forEach(function (it) {
+      sheet.appendRow([it.id, it.name, it.price, it.enabled]);
+    });
+  }
+
+  return sheet;
+}
+
+function getMenuConfig() {
+  const sheet = getMenuSheet_();
+  const values = sheet.getDataRange().getValues();
+  const rows = values.slice(1); // 去掉標題列
+
+  return rows
+    .filter(function (r) { return r[0]; })
+    .map(function (r) {
+      return {
+        id: String(r[0]),
+        name: String(r[1] || ''),
+        price: Number(r[2]) || 0,
+        enabled: String(r[3]).toUpperCase() !== 'FALSE'
+      };
+    });
+}
+
+function getPricesMap() {
+  const map = {};
+
+  // 先用寫死的預設值當備援，避免「菜單設定」分頁缺資料時算不出金額
+  DEFAULT_MENU.forEach(function (it) {
+    map[it.id] = it.price;
+  });
+
+  getMenuConfig().forEach(function (it) {
+    map[it.id] = it.price;
+  });
+
+  return map;
+}
+
+function writeMenuConfig(items) {
+  const sheet = getMenuSheet_();
+  const values = sheet.getDataRange().getValues();
+
+  items.forEach(function (item) {
+    if (!item || !item.id) return;
+
+    let rowIndex = -1;
+    for (let i = 1; i < values.length; i++) {
+      if (String(values[i][0]) === String(item.id)) {
+        rowIndex = i;
+        break;
+      }
+    }
+
+    const price = Number(item.price) || 0;
+    const enabled = item.enabled !== false;
+
+    if (rowIndex === -1) {
+      // 找不到這個 ID 就新增一列（例如未來在 menu.js 新增品項時）
+      sheet.appendRow([item.id, item.id, price, enabled]);
+    } else {
+      sheet.getRange(rowIndex + 1, 3).setValue(price);   // C 欄：價格
+      sheet.getRange(rowIndex + 1, 4).setValue(enabled); // D 欄：上架
+    }
+  });
 }
