@@ -18,6 +18,7 @@ export default function App() {
   const [tempOrderType, setTempOrderType] = useState(null);
 
   const [cart, setCart] = useState(INITIAL_CART);
+  const [showCartPreview, setShowCartPreview] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -145,12 +146,15 @@ export default function App() {
 
   let isThresholdMet = false;
   let thresholdMsg = "";
+  let thresholdShortMsg = "";
   if (orderType === "fulon") {
     isThresholdMet = totalBao >= 30 || totalPlatter >= 3;
     thresholdMsg = "尚未達到淡水福容飯店訂餐門檻：刈包需 30 顆以上，或素滷味拼盤需 3 盤以上。";
+    thresholdShortMsg = "未達門檻：刈包 30 顆或拼盤 3 盤";
   } else if (orderType === "other") {
     isThresholdMet = totalBao >= 10 || totalPlatter >= 1;
     thresholdMsg = "尚未達到訂餐門檻：刈包需 10 顆以上，或素滷味拼盤 1 盤即可訂購。";
+    thresholdShortMsg = "未達門檻：刈包 10 顆或拼盤 1 盤";
   }
 
   const soupQty = cart['soup'] || 0;
@@ -159,6 +163,12 @@ export default function App() {
 
   const isBaoValid = totalBao === 0 || totalBao >= 10;
   const baoMsg = "刈包如需訂購，最少需 10 顆才能製作，請調整數量或不訂購刈包。";
+
+  // 點餐頁預覽面板用的精簡提示，完整說明留在第二頁
+  const cartWarnings = [];
+  if (!isThresholdMet) cartWarnings.push(thresholdShortMsg);
+  if (!isBaoValid) cartWarnings.push("刈包需 10 顆以上");
+  if (!isSoupValid) cartWarnings.push("補湯需 10 碗以上");
 
   const updateQty = (key, delta) => {
     setCart(prev => ({
@@ -448,24 +458,70 @@ export default function App() {
             })}
           </div>
 
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t pt-4 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] max-w-md mx-auto z-20 flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-            <div>
-              <div className="text-xs text-gray-400">已選品項數量：{totalItems}</div>
-              <div className="text-2xl font-bold text-orange-600">${totalAmount}</div>
-            </div>
-            <button
-              onClick={() => {
-                if (totalItems === 0) {
-                  showToastMessage("您的購物車還是空的，請先挑選餐點喔！");
-                  return;
-                }
+          <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-20">
+            {showCartPreview && totalItems > 0 && (
+              <div className="bg-white border-t px-4 py-3 max-h-60 overflow-y-auto shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                <h3 className="font-bold text-sm text-gray-700 border-b pb-2 mb-2">已選餐點</h3>
 
-                setStage(2);
-              }}
-              className="px-8 py-3.5 bg-orange-600 active:bg-orange-700 text-white rounded-xl font-bold shadow-md"
-            >
-              查看確認餐點
-            </button>
+                <div className="text-sm space-y-1">
+                  {MENU.map(item => {
+                    if (item.type === "two-options") {
+                      return item.options.map(opt => {
+                        if (cart[opt.id] > 0) {
+                          return <CartRow key={opt.id} name={opt.uiName} qty={cart[opt.id]} amount={cart[opt.id] * opt.price} />
+                        }
+                        return null;
+                      });
+                    } else {
+                      if (cart[item.id] > 0) {
+                        return <CartRow key={item.id} name={item.uiName} qty={cart[item.id]} amount={cart[item.id] * item.price} />
+                      }
+                    }
+                    return null;
+                  })}
+                </div>
+
+                {cartWarnings.length > 0 && (
+                  <div className="mt-3 bg-red-50 border border-red-300 text-red-600 text-xs font-bold rounded-lg p-2 text-center">
+                    ⚠️ {cartWarnings.join("／")}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="bg-white border-t pt-4 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+              <button
+                type="button"
+                onClick={() => {
+                  if (totalItems === 0) return;
+                  setShowCartPreview(prev => !prev);
+                }}
+                className="text-left"
+              >
+                <div className="text-xs text-gray-400">
+                  已選品項數量：{totalItems}
+                  {totalItems > 0 && (
+                    <span className="ml-1 text-orange-600 font-bold">
+                      {showCartPreview ? "收合 ▼" : "查看 ▲"}
+                    </span>
+                  )}
+                </div>
+                <div className="text-2xl font-bold text-orange-600">${totalAmount}</div>
+              </button>
+              <button
+                onClick={() => {
+                  if (totalItems === 0) {
+                    showToastMessage("您的購物車還是空的，請先挑選餐點喔！");
+                    return;
+                  }
+
+                  setStage(2);
+                }}
+                className="px-8 py-3.5 bg-orange-600 active:bg-orange-700 text-white rounded-xl font-bold shadow-md"
+              >
+                下一步
+              </button>
+            </div>
           </div>
         </div>
       )}
