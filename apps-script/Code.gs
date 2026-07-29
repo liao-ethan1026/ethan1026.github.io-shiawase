@@ -13,17 +13,20 @@
  * ⚠️ 此檔案僅為版本備份紀錄，實際執行的是 Google Apps Script 上的版本。
  *    修改後請到 Apps Script 貼上並「管理部署作業 → 編輯 → 新版本」重新部署（網址不變）。
  *
- * ⚠️ ADMIN_PASSCODE 故意留空。這個檔案會被上傳到公開的 GitHub repo，
- *    真正的管理密碼只能填在 Apps Script 網站上實際執行的那份程式碼裡，
- *    絕對不要把真正的密碼填回這個檔案再 commit。
+ * ⚠️ 這個檔案會被上傳到公開的 GitHub repo，
+ *    真正的管理密碼不寫在程式碼裡，改存在 Apps Script 的「指令碼屬性」
+ *    （專案設定 → 指令碼屬性），屬性名稱設為 ADMIN_PASSCODE。
+ *    這樣密碼完全不出現在程式碼檔案裡，不管這份檔案怎麼被複製或上傳都不會外流。
  */
 
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1Rde3eDe6evLc4DvxNNzOWNjDKVdRuR_6oND7xgs_k0Y/edit';
 const SHEET_NAME = '訂單';
 const MENU_SHEET_NAME = '菜單設定';
 
-// 後台管理頁面用的通關密碼，只能填在 Apps Script 編輯畫面裡，不要填在這個備份檔裡
-const ADMIN_PASSCODE = '';
+// 從「指令碼屬性」讀取管理密碼（屬性名稱：ADMIN_PASSCODE），沒設定就回傳空字串
+function getAdminPasscode_() {
+  return PropertiesService.getScriptProperties().getProperty('ADMIN_PASSCODE') || '';
+}
 
 // 「菜單設定」分頁還沒建立時，用這組預設值自動建立（跟目前 menu.js 的品項一致）
 const DEFAULT_MENU = [
@@ -132,14 +135,16 @@ function handleSubmitOrder(orderData) {
 }
 
 function handleUpdateMenu(requestData) {
-  if (!ADMIN_PASSCODE) {
+  const adminPasscode = getAdminPasscode_();
+
+  if (!adminPasscode) {
     return jsonOutput({
       success: false,
-      message: '後台尚未設定管理密碼，請先在 Apps Script 編輯畫面設定 ADMIN_PASSCODE'
+      message: '後台尚未設定管理密碼，請先在 Apps Script 的「指令碼屬性」設定 ADMIN_PASSCODE'
     });
   }
 
-  if (requestData.passcode !== ADMIN_PASSCODE) {
+  if (requestData.passcode !== adminPasscode) {
     return jsonOutput({
       success: false,
       message: '管理密碼錯誤'
