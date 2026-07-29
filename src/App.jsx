@@ -22,6 +22,8 @@ export default function App() {
 
   // 後台菜單設定（上架狀態、價格）；null 代表還沒讀到或讀取失敗，這時全部退回本地預設值
   const [remoteMenu, setRemoteMenu] = useState(null);
+  // 菜單設定是否已經確定（不管成功還是失敗），確定之前先不要畫菜單，避免先閃出全部品項再閃成正確結果
+  const [menuConfigReady, setMenuConfigReady] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -142,6 +144,9 @@ export default function App() {
       } catch (err) {
         // 後台還沒設定好、或讀取失敗時，維持 remoteMenu 為 null，全部退回本地預設值，不影響點餐
         console.warn("讀取後台菜單設定失敗，改用本地預設值", err);
+      } finally {
+        // 不管成功或失敗，狀態都確定了，這時候才能放心畫菜單，不會再閃第二次
+        setMenuConfigReady(true);
       }
     }
 
@@ -496,7 +501,18 @@ export default function App() {
           </header>
 
           <div className="p-4 space-y-4">
-            {sortedMenu.map((item, idx) => {
+            {!menuConfigReady ? (
+              // 菜單設定還沒讀完之前，先用骨架畫面佔位，避免先畫出全部品項、資料到了才閃一次變成正確結果
+              Array.from({ length: MENU.length }).map((_, i) => (
+                <div key={i} className="bg-white rounded-xl shadow-sm border p-3 flex gap-4 animate-pulse">
+                  <div className="w-24 h-24 rounded-lg bg-gray-200 flex-shrink-0" />
+                  <div className="flex-1 flex flex-col justify-center gap-2">
+                    <div className="h-4 bg-gray-200 rounded w-2/3" />
+                    <div className="h-3 bg-gray-200 rounded w-1/3" />
+                  </div>
+                </div>
+              ))
+            ) : sortedMenu.map((item, idx) => {
               const meta = getCardMeta(item, idx);
 
               if (item.type === "two-options") {
