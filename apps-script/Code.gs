@@ -29,12 +29,14 @@ function getAdminPasscode_() {
 }
 
 // 「菜單設定」分頁還沒建立時，用這組預設值自動建立（跟目前 menu.js 的品項一致）
+// name/description/order 只有每張卡片的「代表列」會被前端讀取：
+// 兩選項品項（刈包）以第一個選項（baoWith）代表整張卡片的標題與排序
 const DEFAULT_MENU = [
-  { id: 'baoWith', name: '素滷肉刈包(加香菜)', price: 60, enabled: true },
-  { id: 'baoWithout', name: '素滷肉刈包(不香菜)', price: 60, enabled: true },
-  { id: 'platter', name: '特製素滷味拼盤', price: 600, enabled: true },
-  { id: 'soup', name: '素藥膳補湯(一碗)', price: 60, enabled: true },
-  { id: 'soyMilk', name: '非基改豆漿(500cc)', price: 30, enabled: true }
+  { id: 'baoWith', name: '招牌素滷肉刈包', description: '', price: 60, enabled: true, order: 1 },
+  { id: 'baoWithout', name: '', description: '', price: 60, enabled: true, order: 1 },
+  { id: 'platter', name: '特製素滷味拼盤', description: '大份量聚餐首選', price: 600, enabled: true, order: 2 },
+  { id: 'soup', name: '素藥膳補湯(一碗)', description: '暖胃養生推薦', price: 60, enabled: true, order: 3 },
+  { id: 'soyMilk', name: '非基改豆漿(500cc)', description: '香醇濃郁', price: 30, enabled: true, order: 4 }
 ];
 
 function doGet(e) {
@@ -328,7 +330,13 @@ function writeToSheet(data) {
   }
 }
 
-// ---- 以下為「菜單設定」分頁相關：後台管理頁的上架狀態與價格都存在這裡 ----
+// ---- 以下為「菜單設定」分頁相關：後台管理頁的上架狀態、價格、名稱、排序都存在這裡 ----
+//
+// 欄位用「標題名稱」定位，不是寫死欄位順序。這樣即使之前已經自動建立過
+// 舊版的分頁（只有 品項ID/顯示名稱/價格/上架 四欄），下次讀寫時也會自動
+// 補上「描述文字」「排序」這兩個新欄位，不需要手動刪除分頁重建。
+
+const MENU_HEADERS = ['品項ID', '顯示名稱', '描述文字', '價格', '上架', '排序'];
 
 function getMenuSheet_() {
   const ss = SpreadsheetApp.openByUrl(SHEET_URL);
@@ -336,29 +344,65 @@ function getMenuSheet_() {
 
   if (!sheet) {
     sheet = ss.insertSheet(MENU_SHEET_NAME);
-    sheet.appendRow(['品項ID', '顯示名稱', '價格', '上架']);
+    sheet.appendRow(MENU_HEADERS);
 
     DEFAULT_MENU.forEach(function (it) {
-      sheet.appendRow([it.id, it.name, it.price, it.enabled]);
+      sheet.appendRow([it.id, it.name, it.description, it.price, it.enabled, it.order]);
     });
+  } else {
+    ensureMenuHeaders_(sheet);
   }
 
   return sheet;
 }
 
+// 確保標題列包含 MENU_HEADERS 裡的每一欄，缺哪一欄就補在最後面
+function ensureMenuHeaders_(sheet) {
+  const lastCol = Math.max(sheet.getLastColumn(), 1);
+  let headerRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+
+  MENU_HEADERS.forEach(function (name) {
+    if (headerRow.indexOf(name) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(name);
+    }
+  });
+}
+
+function getMenuHeaderMap_(sheet) {
+  const lastCol = sheet.getLastColumn();
+  const headerRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const map = {};
+
+  headerRow.forEach(function (name, idx) {
+    if (name) map[name] = idx; // 0-based 索引
+  });
+
+  return map;
+}
+
 function getMenuConfig() {
   const sheet = getMenuSheet_();
+  const headerMap = getMenuHeaderMap_(sheet);
   const values = sheet.getDataRange().getValues();
   const rows = values.slice(1); // 去掉標題列
 
+  const idCol = headerMap['品項ID'];
+  const nameCol = headerMap['顯示名稱'];
+  const descCol = headerMap['描述文字'];
+  const priceCol = headerMap['價格'];
+  const enabledCol = headerMap['上架'];
+  const orderCol = headerMap['排序'];
+
   return rows
-    .filter(function (r) { return r[0]; })
+    .filter(function (r) { return r[idCol]; })
     .map(function (r) {
       return {
-        id: String(r[0]),
-        name: String(r[1] || ''),
-        price: Number(r[2]) || 0,
-        enabled: String(r[3]).toUpperCase() !== 'FALSE'
+        id: String(r[idCol]),
+        name: nameCol !== undefined ? String(r[nameCol] || '') : '',
+        description: descCol !== undefined ? String(r[descCol] || '') : '',
+        price: priceCol !== undefined ? (Number(r[priceCol]) || 0) : 0,
+        enabled: enabledCol !== undefined ? String(r[enabledCol]).toUpperCase() !== 'FALSE' : true,
+        order: orderCol !== undefined && r[orderCol] !== '' ? Number(r[orderCol]) : null
       };
     });
 }
@@ -380,28 +424,58 @@ function getPricesMap() {
 
 function writeMenuConfig(items) {
   const sheet = getMenuSheet_();
+  const headerMap = getMenuHeaderMap_(sheet);
   const values = sheet.getDataRange().getValues();
+
+  const idCol = headerMap['品項ID'];
+  const nameCol = headerMap['顯示名稱'];
+  const descCol = headerMap['描述文字'];
+  const priceCol = headerMap['價格'];
+  const enabledCol = headerMap['上架'];
+  const orderCol = headerMap['排序'];
 
   items.forEach(function (item) {
     if (!item || !item.id) return;
 
     let rowIndex = -1;
     for (let i = 1; i < values.length; i++) {
-      if (String(values[i][0]) === String(item.id)) {
+      if (String(values[i][idCol]) === String(item.id)) {
         rowIndex = i;
         break;
       }
     }
 
-    const price = Number(item.price) || 0;
-    const enabled = item.enabled !== false;
-
     if (rowIndex === -1) {
-      // 找不到這個 ID 就新增一列（例如未來在 menu.js 新增品項時）
-      sheet.appendRow([item.id, item.id, price, enabled]);
-    } else {
-      sheet.getRange(rowIndex + 1, 3).setValue(price);   // C 欄：價格
-      sheet.getRange(rowIndex + 1, 4).setValue(enabled); // D 欄：上架
+      // 找不到這個 ID 就新增一列（例如未來在 menu.js 新增品項時），照欄位順序補滿整列
+      const newRow = new Array(Object.keys(headerMap).length).fill('');
+      newRow[idCol] = item.id;
+      if (nameCol !== undefined && item.name !== undefined) newRow[nameCol] = item.name;
+      if (descCol !== undefined && item.description !== undefined) newRow[descCol] = item.description;
+      if (priceCol !== undefined) newRow[priceCol] = Number(item.price) || 0;
+      if (enabledCol !== undefined) newRow[enabledCol] = item.enabled !== false;
+      if (orderCol !== undefined && item.order !== undefined) newRow[orderCol] = Number(item.order) || 0;
+      sheet.appendRow(newRow);
+      return;
+    }
+
+    const sheetRow = rowIndex + 1; // getRange 是 1-based
+
+    // 只更新這次請求有帶到的欄位，避免其他列（例如刈包的第二個選項）
+    // 沒有送 name/description/order 時，把已存在的卡片標題誤蓋成空白
+    if (item.name !== undefined && nameCol !== undefined) {
+      sheet.getRange(sheetRow, nameCol + 1).setValue(item.name);
+    }
+    if (item.description !== undefined && descCol !== undefined) {
+      sheet.getRange(sheetRow, descCol + 1).setValue(item.description);
+    }
+    if (item.price !== undefined && priceCol !== undefined) {
+      sheet.getRange(sheetRow, priceCol + 1).setValue(Number(item.price) || 0);
+    }
+    if (item.enabled !== undefined && enabledCol !== undefined) {
+      sheet.getRange(sheetRow, enabledCol + 1).setValue(item.enabled !== false);
+    }
+    if (item.order !== undefined && orderCol !== undefined) {
+      sheet.getRange(sheetRow, orderCol + 1).setValue(Number(item.order) || 0);
     }
   });
 }

@@ -130,7 +130,10 @@ export default function App() {
             if (it && it.id) {
               map[it.id] = {
                 price: Number(it.price),
-                enabled: it.enabled !== false
+                enabled: it.enabled !== false,
+                name: it.name || "",
+                description: it.description,
+                order: typeof it.order === "number" && !Number.isNaN(it.order) ? it.order : null
               };
             }
           });
@@ -159,6 +162,27 @@ export default function App() {
     const remote = remoteMenu && remoteMenu[id];
     return remote ? remote.enabled : true;
   };
+
+  // 兩選項品項（刈包）用第一個選項的 id 代表整張卡片，卡片標題/描述/排序都存在這個 id 底下
+  const getPrimaryId = (menuItem) => {
+    return menuItem.type === "two-options" ? menuItem.options[0].id : menuItem.id;
+  };
+
+  // 取得卡片目前實際的品名、描述、排序：後台有設定就用後台的，沒有就用 menu.js 的預設值
+  const getCardMeta = (menuItem, fallbackOrder) => {
+    const remote = remoteMenu && remoteMenu[getPrimaryId(menuItem)];
+    return {
+      name: (remote && remote.name) || menuItem.title,
+      description: remote && remote.description !== undefined ? remote.description : menuItem.description,
+      order: remote && typeof remote.order === "number" ? remote.order : fallbackOrder
+    };
+  };
+
+  // 依後台設定的排序值重新排列品項，沒有設定排序的品項維持原本在 menu.js 裡的順序
+  const sortedMenu = MENU
+    .map((item, idx) => ({ item, order: getCardMeta(item, idx).order }))
+    .sort((a, b) => a.order - b.order)
+    .map(entry => entry.item);
 
   const showToastMessage = (msg, isWarn = true) => {
     setToast({
@@ -472,7 +496,9 @@ export default function App() {
           </header>
 
           <div className="p-4 space-y-4">
-            {MENU.map((item, idx) => {
+            {sortedMenu.map((item, idx) => {
+              const meta = getCardMeta(item, idx);
+
               if (item.type === "two-options") {
                 const idA = item.options[0].id;
                 const idB = item.options[1].id;
@@ -483,9 +509,9 @@ export default function App() {
 
                 return (
                   <MenuItemWithTwoOptions
-                    key={idx}
+                    key={idA}
                     image={item.image}
-                    title={item.title}
+                    title={meta.name}
                     optionA={item.options[0].shortName}
                     optionB={item.options[1].shortName}
                     priceA={getPrice(idA)}
@@ -507,8 +533,8 @@ export default function App() {
                   <MenuItem
                     key={item.id}
                     image={item.image}
-                    title={item.title}
-                    description={item.description}
+                    title={meta.name}
+                    description={meta.description}
                     price={getPrice(item.id)}
                     qty={cart[item.id]}
                     onMinus={() => updateQty(item.id, -1)}
